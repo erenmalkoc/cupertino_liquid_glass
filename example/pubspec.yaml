@@ -1,0 +1,20 @@
+name: cupertino_liquid_glass_example
+description: Demonstrates the cupertino_liquid_glass package.
+publish_to: 'none'
+
+environment:
+  sdk: ^3.11.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_liquid_glass:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,31 @@
+name: cupertino_liquid_glass
+description: >
+  A premium Flutter widget that replicates Apple's iOS Liquid Glass blur and
+  translucency design language with native-feel BackdropFilter effects,
+  dynamic light/dark theme support, and ProMotion-optimized performance.
+version: 0.1.0
+homepage: https://github.com/erenmalkoc/cupertino_liquid_glass
+repository: https://github.com/erenmalkoc/cupertino_liquid_glass
+issue_tracker: https://github.com/erenmalkoc/cupertino_liquid_glass/issues
+
+topics:
+  - ui
+  - cupertino
+  - blur
+  - glass
+  - ios
+
+environment:
+  sdk: ^3.11.3
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
