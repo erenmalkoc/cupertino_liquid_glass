@@ -25,8 +25,9 @@ class LiquidGlassBottomBarItem {
 
 /// A pre-built bottom tab bar wrapped in a [CupertinoLiquidGlass] surface.
 ///
-/// Mirrors the look and feel of the iOS tab bar in apps like Phone and Music,
-/// but rendered entirely in Flutter with a frosted-glass backdrop.
+/// Mirrors the look and feel of the iOS 26 tab bar with frosted-glass backdrop,
+/// edge lighting, inner shadow depth, and a [LiquidGlassBloom] glow on the
+/// active tab that spills soft colored light onto the glass surface.
 ///
 /// ## Example
 ///
@@ -118,6 +119,8 @@ class CupertinoLiquidGlassBottomBar extends StatelessWidget {
             final iconData =
                 isActive ? (item.activeIcon ?? item.icon) : item.icon;
 
+            final icon = Icon(iconData, color: color, size: 24.0);
+
             return Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -125,7 +128,16 @@ class CupertinoLiquidGlassBottomBar extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(iconData, color: color, size: 24.0),
+                    if (isActive)
+                      LiquidGlassBloom(
+                        color: resolvedActive,
+                        radius: 16.0,
+                        spread: 6.0,
+                        intensity: 0.45,
+                        child: icon,
+                      )
+                    else
+                      icon,
                     const SizedBox(height: 2.0),
                     Text(
                       item.label,

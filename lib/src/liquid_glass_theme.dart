@@ -2,11 +2,11 @@ import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 
-/// Theme configuration for the [CupertinoLiquidGlass] widget.
+/// Theme configuration for [CupertinoLiquidGlass] and related widgets.
 ///
-/// Defines all visual properties that control the appearance of the glass
-/// effect, including blur intensity, tint color, border styling, and the
-/// optional specular highlight gradient.
+/// Defines all visual properties that control the glass effect appearance,
+/// including blur intensity, tint, edge lighting, inner shadow, noise grain,
+/// vibrancy boost, and the optional specular highlight gradient.
 ///
 /// Use [LiquidGlassThemeData.light] and [LiquidGlassThemeData.dark] factory
 /// constructors for Apple HIG-compliant presets that match iOS system materials.
@@ -33,13 +33,19 @@ class LiquidGlassThemeData {
   /// The corner radius applied to the glass container.
   final BorderRadius borderRadius;
 
-  /// The border color drawn around the glass surface.
+  /// The highlight color on the top-left edge of the gradient border.
   ///
-  /// A subtle border helps the glass element "lift" from its background,
-  /// especially against complex imagery.
-  final Color borderColor;
+  /// Simulates specular light catching the top edge of the glass surface,
+  /// producing the characteristic 3D edge-lit appearance.
+  final Color edgeLightColor;
 
-  /// The width of the border drawn around the glass surface.
+  /// The shadow color on the bottom-right edge of the gradient border.
+  ///
+  /// Provides the darker counterpart to [edgeLightColor], completing the
+  /// directional lighting illusion on the border.
+  final Color edgeShadowColor;
+
+  /// The stroke width of the edge-lit gradient border.
   final double borderWidth;
 
   /// An optional gradient that simulates a specular highlight (the "liquid"
@@ -51,6 +57,34 @@ class LiquidGlassThemeData {
   /// The opacity of the specular gradient overlay.
   final double specularOpacity;
 
+  /// The color of the inner shadow cast along the inside edges of the glass.
+  ///
+  /// This creates the subtle "carved out of glass" depth effect, making the
+  /// surface feel recessed rather than flat.
+  final Color innerShadowColor;
+
+  /// The blur radius of the inner shadow.
+  ///
+  /// Controls how soft or hard the inner shadow edge appears. Values between
+  /// 3.0 and 8.0 produce the most realistic glass depth.
+  final double innerShadowBlurRadius;
+
+  /// The opacity of the microscopic noise grain overlay (0.0–1.0).
+  ///
+  /// Premium Apple glass effects use a barely-visible noise texture to
+  /// prevent color banding and make the surface look physical. Typical
+  /// values are 0.02–0.04.
+  final double noiseOpacity;
+
+  /// The intensity of the vibrancy / saturation boost applied over the
+  /// blurred backdrop (0.0–1.0).
+  ///
+  /// Simulates Apple's vibrancy effect where the blurred background colors
+  /// are perceptually boosted before the tint is applied. A subtle overlay
+  /// with [BlendMode.overlay] is used to increase perceived contrast and
+  /// saturation of the backdrop.
+  final double vibrancyIntensity;
+
   /// An optional shadow cast beneath the glass surface for depth.
   final List<BoxShadow>? shadows;
 
@@ -60,25 +94,31 @@ class LiquidGlassThemeData {
     this.tintColor = CupertinoColors.white,
     this.tintOpacity = 0.55,
     this.borderRadius = const BorderRadius.all(Radius.circular(20.0)),
-    this.borderColor = const Color(0x40FFFFFF),
-    this.borderWidth = 0.5,
+    this.edgeLightColor = const Color(0x50FFFFFF),
+    this.edgeShadowColor = const Color(0x10000000),
+    this.borderWidth = 0.75,
     this.specularGradient,
     this.specularOpacity = 0.25,
+    this.innerShadowColor = const Color(0x20000000),
+    this.innerShadowBlurRadius = 4.0,
+    this.noiseOpacity = 0.025,
+    this.vibrancyIntensity = 0.12,
     this.shadows,
   });
 
   /// A light-mode preset that matches iOS `UIBlurEffect.systemMaterial`.
   ///
-  /// Produces a bright, matte glass surface with a subtle white tint and
-  /// a soft specular highlight across the top edge.
+  /// Produces a bright, matte glass surface with edge lighting, subtle inner
+  /// shadow, noise grain, and a soft specular highlight across the top edge.
   factory LiquidGlassThemeData.light() {
     return LiquidGlassThemeData(
       blurSigma: 28.0,
       tintColor: CupertinoColors.white,
-      tintOpacity: 0.55,
+      tintOpacity: 0.45,
       borderRadius: const BorderRadius.all(Radius.circular(20.0)),
-      borderColor: const Color(0x40FFFFFF),
-      borderWidth: 0.5,
+      edgeLightColor: const Color(0x60FFFFFF),
+      edgeShadowColor: const Color(0x08000000),
+      borderWidth: 0.75,
       specularGradient: const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -90,9 +130,13 @@ class LiquidGlassThemeData {
         stops: [0.0, 0.4, 1.0],
       ),
       specularOpacity: 0.30,
+      innerShadowColor: const Color(0x18000000),
+      innerShadowBlurRadius: 3.0,
+      noiseOpacity: 0.02,
+      vibrancyIntensity: 0.10,
       shadows: const [
         BoxShadow(
-          color: Color(0x18000000),
+          color: Color(0x1A000000),
           blurRadius: 24.0,
           spreadRadius: 0.0,
           offset: Offset(0, 8),
@@ -103,30 +147,36 @@ class LiquidGlassThemeData {
 
   /// A dark-mode preset that matches iOS `UIBlurEffect.systemMaterialDark`.
   ///
-  /// Produces a deep, contrasty glass surface with a dark tint and a more
-  /// pronounced specular highlight for legibility against dark backgrounds.
+  /// Produces a deep, contrasty glass surface with stronger edge lighting,
+  /// pronounced inner shadow, and enhanced vibrancy for legibility against
+  /// dark backgrounds.
   factory LiquidGlassThemeData.dark() {
     return LiquidGlassThemeData(
       blurSigma: 32.0,
       tintColor: const Color(0xFF1C1C1E),
-      tintOpacity: 0.62,
+      tintOpacity: 0.52,
       borderRadius: const BorderRadius.all(Radius.circular(20.0)),
-      borderColor: const Color(0x30FFFFFF),
-      borderWidth: 0.5,
+      edgeLightColor: const Color(0x40FFFFFF),
+      edgeShadowColor: const Color(0x20000000),
+      borderWidth: 0.75,
       specularGradient: const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color(0x30FFFFFF),
-          Color(0x0AFFFFFF),
+          Color(0x35FFFFFF),
+          Color(0x0CFFFFFF),
           Color(0x00FFFFFF),
         ],
         stops: [0.0, 0.35, 1.0],
       ),
-      specularOpacity: 0.20,
+      specularOpacity: 0.22,
+      innerShadowColor: const Color(0x30000000),
+      innerShadowBlurRadius: 5.0,
+      noiseOpacity: 0.03,
+      vibrancyIntensity: 0.15,
       shadows: const [
         BoxShadow(
-          color: Color(0x40000000),
+          color: Color(0x50000000),
           blurRadius: 32.0,
           spreadRadius: 0.0,
           offset: Offset(0, 10),
@@ -141,10 +191,15 @@ class LiquidGlassThemeData {
     Color? tintColor,
     double? tintOpacity,
     BorderRadius? borderRadius,
-    Color? borderColor,
+    Color? edgeLightColor,
+    Color? edgeShadowColor,
     double? borderWidth,
     Gradient? specularGradient,
     double? specularOpacity,
+    Color? innerShadowColor,
+    double? innerShadowBlurRadius,
+    double? noiseOpacity,
+    double? vibrancyIntensity,
     List<BoxShadow>? shadows,
   }) {
     return LiquidGlassThemeData(
@@ -152,10 +207,16 @@ class LiquidGlassThemeData {
       tintColor: tintColor ?? this.tintColor,
       tintOpacity: tintOpacity ?? this.tintOpacity,
       borderRadius: borderRadius ?? this.borderRadius,
-      borderColor: borderColor ?? this.borderColor,
+      edgeLightColor: edgeLightColor ?? this.edgeLightColor,
+      edgeShadowColor: edgeShadowColor ?? this.edgeShadowColor,
       borderWidth: borderWidth ?? this.borderWidth,
       specularGradient: specularGradient ?? this.specularGradient,
       specularOpacity: specularOpacity ?? this.specularOpacity,
+      innerShadowColor: innerShadowColor ?? this.innerShadowColor,
+      innerShadowBlurRadius:
+          innerShadowBlurRadius ?? this.innerShadowBlurRadius,
+      noiseOpacity: noiseOpacity ?? this.noiseOpacity,
+      vibrancyIntensity: vibrancyIntensity ?? this.vibrancyIntensity,
       shadows: shadows ?? this.shadows,
     );
   }
@@ -176,8 +237,12 @@ class LiquidGlassThemeData {
       borderRadius:
           BorderRadius.lerp(a.borderRadius, b.borderRadius, t) ??
           a.borderRadius,
-      borderColor:
-          Color.lerp(a.borderColor, b.borderColor, t) ?? a.borderColor,
+      edgeLightColor:
+          Color.lerp(a.edgeLightColor, b.edgeLightColor, t) ??
+          a.edgeLightColor,
+      edgeShadowColor:
+          Color.lerp(a.edgeShadowColor, b.edgeShadowColor, t) ??
+          a.edgeShadowColor,
       borderWidth:
           lerpDouble(a.borderWidth, b.borderWidth, t) ?? a.borderWidth,
       specularGradient:
@@ -185,6 +250,17 @@ class LiquidGlassThemeData {
       specularOpacity:
           lerpDouble(a.specularOpacity, b.specularOpacity, t) ??
           a.specularOpacity,
+      innerShadowColor:
+          Color.lerp(a.innerShadowColor, b.innerShadowColor, t) ??
+          a.innerShadowColor,
+      innerShadowBlurRadius:
+          lerpDouble(a.innerShadowBlurRadius, b.innerShadowBlurRadius, t) ??
+          a.innerShadowBlurRadius,
+      noiseOpacity:
+          lerpDouble(a.noiseOpacity, b.noiseOpacity, t) ?? a.noiseOpacity,
+      vibrancyIntensity:
+          lerpDouble(a.vibrancyIntensity, b.vibrancyIntensity, t) ??
+          a.vibrancyIntensity,
       shadows: BoxShadow.lerpList(a.shadows ?? [], b.shadows ?? [], t),
     );
   }

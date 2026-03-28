@@ -15,12 +15,6 @@ topics:
   - glass
   - ios
 
-screenshots:
-  - description: 'Liquid Glass effect in light mode — frosted nav bar, cards, and bottom tab bar over a scrollable list.'
-    path: doc/assets/preview_light.png
-  - description: 'Liquid Glass effect in dark mode — deep contrasty glass surfaces with specular highlights.'
-    path: doc/assets/preview_dark.png
-
 funding:
   - https://github.com/sponsors/erenmalkoc
 
