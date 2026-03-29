@@ -1,3 +1,11 @@
+## 0.3.0
+
+* **Sliding Fluid Interaction**: Added spring physics and velocity-based stretching to the bottom bar.
+* **Visual Overhaul**: Implemented edge lighting, inner shadows, and microscopic noise grain.
+* **LiquidGlassBloom**: New widget for soft colored glows (bloom effects).
+* **Performance**: Optimized rendering with CustomPainter and RepaintBoundary.
+
+
 ## 0.2.0
 
 * **Edge Lighting**: Gradient border with `edgeLightColor` / `edgeShadowColor` replacing flat `borderColor` — simulates directional light catching the glass edge.
