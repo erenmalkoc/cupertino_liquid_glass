@@ -1,3 +1,14 @@
+## 0.2.0
+
+* **Edge Lighting**: Gradient border with `edgeLightColor` / `edgeShadowColor` replacing flat `borderColor` — simulates directional light catching the glass edge.
+* **Inner Shadow**: Carved-glass depth effect via `innerShadowColor` and `innerShadowBlurRadius`.
+* **Noise Grain Overlay**: Microscopic texture controlled by `noiseOpacity` to prevent banding.
+* **Vibrancy / Saturation Boost**: `vibrancyIntensity` overlay that perceptually enhances blurred backdrop colors.
+* **LiquidGlassBloom**: New widget for soft colored glow behind child elements (active tab bloom).
+* **CupertinoLiquidGlassBottomBar**: Active tab now renders bloom glow automatically.
+* **CupertinoLiquidGlass**: Added `glowColor` / `glowRadius` for whole-surface bloom.
+* Multi-layer rendering via `CustomPainter` with efficient `shouldRepaint` guards.
+
 ## 0.1.0
 
 * Initial release.
