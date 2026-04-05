@@ -106,22 +106,31 @@ CupertinoLiquidGlassBottomBar (StatefulWidget)
 - `SpringSimulation` provides bouncy transitions (mass: 1.0, stiffness: 320.0, damping: 22.0)
 - `_position` (fractional index) tracks selector location
 - `_velocity` drives stretch effect during fast movement
-- `_elasticScale` tracks rubber banding scale (1.0 rest, 1.04 expanded)
+- `_elasticScale` tracks rubber banding scale (1.0 rest, 1.08 expanded)
 
 **Rubber Banding (Elasticity):**
-- On `onHorizontalDragStart`: bar scales up to 104% via spring animation
+- On `onHorizontalDragStart`: bar scales up to 108% via spring animation
 - On `onHorizontalDragEnd`: bar springs back to 100%
 - Anchor point: `Alignment.bottomCenter` (expands upward)
 - Spring: mass 1.0, stiffness 300.0, damping 20.0 (slight overshoot)
 
-**Apple HIG Compliance:**
-- Bar height: 49 pt (`_kTabBarHeight`)
-- Icon size: 25 pt (`_kIconSize`)
-- Touch target: 44 pt minimum (`_kMinHitTarget`)
-- Label font: 10 pt (`_kLabelFontSize`)
+**Glass Icon Effect:**
+- Dock-style magnification: icons scale up to 118% based on selector proximity
+- `_GlassIcon` widget wraps each icon with `_GlassIconPainter`
+- Outer colored glow: radial bloom in `activeColor` behind icon
+- Inner specular highlight: bright dot at top of icon for glass refraction
+- All effects interpolate smoothly with proximity (0.0 → 1.0)
 
-**Supporting Class:**
+**Bar Dimensions:**
+- Bar height: 56 pt (`_kTabBarHeight`)
+- Icon size: 28 pt (`_kIconSize`)
+- Touch target: 48 pt minimum (`_kMinHitTarget`)
+- Label font: 11 pt (`_kLabelFontSize`)
+
+**Supporting Classes:**
 - `LiquidGlassBottomBarItem` — Data class holding `icon`, `activeIcon`, and `label`
+- `_GlassIcon` — Widget rendering icon with glass refraction glow
+- `_GlassIconPainter` — CustomPainter for proximity-based glass halo
 
 ## Multi-Layer Rendering Pipeline
 

@@ -29,8 +29,9 @@ A premium Flutter widget that replicates the native iOS frosted-glass material e
 | **Fully customizable** | Override `blurSigma`, `tintOpacity`, `borderRadius`, `borderColor`, `borderWidth`, and `specularGradient` per-widget. |
 | **Theme interpolation** | `LiquidGlassThemeData.lerp()` enables smooth animated transitions between any two theme configurations. |
 | **Pre-built bars** | `CupertinoLiquidGlassNavBar` and `CupertinoLiquidGlassBottomBar` — drop-in replacements with safe-area handling. |
-| **Apple HIG compliant** | Bottom bar follows iOS standards: 49 pt height, 25 pt icons, 44 pt touch targets. |
-| **Rubber banding** | Elastic scale animation on horizontal drag — the bar expands during swipe and springs back on release. |
+| **Apple HIG compliant** | Bottom bar with 56 pt height, 28 pt icons, 48 pt touch targets for comfortable interaction. |
+| **Rubber banding** | Elastic scale animation (8%) on horizontal drag — the bar expands during swipe and springs back on release. |
+| **Glass icon effect** | Dock-style magnification and glass refraction glow on icons as the selector passes over them. |
 
 ## Preview
 
@@ -80,7 +81,7 @@ CupertinoLiquidGlass(
   blurSigma: 40,
   tintOpacity: 0.3,
   borderRadius: BorderRadius.circular(32),
-  borderColor: Color(0x60FFFFFF),
+  edgeLightColor: Color(0x60FFFFFF),
   child: MyContent(),
 )
 ```
@@ -165,12 +166,15 @@ The core widget. Wraps any child in a frosted-glass surface with backdrop blur.
 | `blurSigma` | `double?` | theme | Override blur intensity |
 | `tintOpacity` | `double?` | theme | Override tint layer opacity |
 | `borderRadius` | `BorderRadius?` | theme | Override corner radius |
-| `borderColor` | `Color?` | theme | Override border color |
+| `edgeLightColor` | `Color?` | theme | Override edge highlight color |
+| `edgeShadowColor` | `Color?` | theme | Override edge shadow color |
 | `borderWidth` | `double?` | theme | Override border width |
 | `specularGradient` | `Gradient?` | theme | Override specular highlight |
 | `padding` | `EdgeInsetsGeometry?` | null | Inner padding |
 | `width` | `double?` | null | Fixed width |
 | `height` | `double?` | null | Fixed height |
+| `glowColor` | `Color?` | null | Soft bloom glow around surface |
+| `glowRadius` | `double` | 24.0 | Blur radius of glow |
 
 ### `LiquidGlassThemeData`
 

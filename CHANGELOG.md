@@ -1,7 +1,8 @@
 ## 0.4.0
 
-* **Apple HIG Compliance**: Bottom bar dimensions now match iOS standards — 49 pt height, 25 pt icons, 44 pt minimum touch targets.
-* **Rubber Banding**: Bottom bar scales up elastically during horizontal drag and springs back on release.
+* **Bottom Bar Overhaul**: Increased bar height to 56 pt, icon size to 28 pt, touch targets to 48 pt for better usability.
+* **Rubber Banding**: Bottom bar scales up 8% elastically during horizontal drag and springs back on release.
+* **Glass Icon Effect**: Dock-style magnification (18% scale) and glass refraction glow on icons during selector proximity.
 * **Theme Tuning**: Light mode tint opacity adjusted to 65%, dark mode to 55%, blur sigma values aligned with `UIBlurEffect.systemChromeMaterial`.
 * **Dark Mode Toggle**: Example app now includes a light/dark theme switcher in the nav bar.
 * **pub.dev Fix**: Shortened package description to comply with 180-character limit (150/160 points → 160/160).
