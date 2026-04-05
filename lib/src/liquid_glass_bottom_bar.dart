@@ -144,7 +144,7 @@ class _CupertinoLiquidGlassBottomBarState
     extends State<CupertinoLiquidGlassBottomBar>
     with TickerProviderStateMixin {
   late AnimationController _controller;
-  late AnimationController _scaleController;
+  late AnimationController _liftController;
 
   /// Current fractional index of the selector (0.0 = first tab, etc.).
   double _position = 0.0;
@@ -155,8 +155,8 @@ class _CupertinoLiquidGlassBottomBarState
   /// Whether the user is actively dragging.
   bool _isDragging = false;
 
-  /// Current scale for scroll-aware resizing.
-  double _scale = 1.0;
+  /// Current vertical lift offset (negative = upward) for scroll animation.
+  double _liftOffset = 0.0;
 
   /// Apple-like spring: ~0.35s response, 0.75 damping fraction.
   /// Reverse-engineered from SwiftUI spring(.bouncy) defaults.
@@ -166,12 +166,15 @@ class _CupertinoLiquidGlassBottomBarState
     damping: 22.0,
   );
 
-  /// Spring for scale animation (smoother, less bouncy).
-  static const _scaleSpring = SpringDescription(
+  /// Spring for lift animation (smooth, minimal overshoot).
+  static const _liftSpring = SpringDescription(
     mass: 1.0,
     stiffness: 260.0,
     damping: 24.0,
   );
+
+  /// How many points the bar lifts upward during scroll.
+  static const _liftDistance = -6.0;
 
   SpringDescription get _spring => widget.springDescription ?? _defaultSpring;
 
@@ -183,8 +186,8 @@ class _CupertinoLiquidGlassBottomBarState
     _position = widget.currentIndex.toDouble();
     _controller = AnimationController.unbounded(vsync: this)
       ..addListener(_onTick);
-    _scaleController = AnimationController.unbounded(vsync: this, value: 1.0)
-      ..addListener(_onScaleTick);
+    _liftController = AnimationController.unbounded(vsync: this, value: 0.0)
+      ..addListener(_onLiftTick);
     widget.scrollController?.addListener(_onScroll);
   }
 
@@ -204,7 +207,7 @@ class _CupertinoLiquidGlassBottomBarState
   void dispose() {
     widget.scrollController?.removeListener(_onScroll);
     _controller.dispose();
-    _scaleController.dispose();
+    _liftController.dispose();
     super.dispose();
   }
 
@@ -219,9 +222,9 @@ class _CupertinoLiquidGlassBottomBarState
     });
   }
 
-  void _onScaleTick() {
+  void _onLiftTick() {
     setState(() {
-      _scale = _scaleController.value;
+      _liftOffset = _liftController.value;
     });
   }
 
@@ -237,7 +240,7 @@ class _CupertinoLiquidGlassBottomBarState
   }
 
   // ---------------------------------------------------------------------------
-  // Scroll-aware resizing
+  // Scroll-aware lift
   // ---------------------------------------------------------------------------
 
   bool _isScrolling = false;
@@ -248,21 +251,21 @@ class _CupertinoLiquidGlassBottomBarState
 
     if (!_isScrolling) {
       _isScrolling = true;
-      // Scale down to 85% during scroll.
-      _scaleController.animateWith(
-        SpringSimulation(_scaleSpring, _scale, 0.85, 0.0),
+      // Lift bar upward during scroll.
+      _liftController.animateWith(
+        SpringSimulation(_liftSpring, _liftOffset, _liftDistance, 0.0),
       );
     }
 
-    // Schedule a check to restore scale when scrolling stops.
+    // Schedule a check to restore position when scrolling stops.
     Future.delayed(const Duration(milliseconds: 150), () {
       if (!mounted) return;
       final currentSc = widget.scrollController;
       if (currentSc == null || !currentSc.hasClients) return;
       if (!currentSc.position.isScrollingNotifier.value) {
         _isScrolling = false;
-        _scaleController.animateWith(
-          SpringSimulation(_scaleSpring, _scale, 1.0, 0.0),
+        _liftController.animateWith(
+          SpringSimulation(_liftSpring, _liftOffset, 0.0, 0.0),
         );
       }
     });
@@ -408,11 +411,10 @@ class _CupertinoLiquidGlassBottomBarState
       ),
     );
 
-    // Apply scroll-aware scale transform.
-    if (widget.scrollController != null && _scale != 1.0) {
-      bar = Transform.scale(
-        scale: _scale,
-        alignment: Alignment.bottomCenter,
+    // Apply scroll-aware lift transform.
+    if (widget.scrollController != null && _liftOffset != 0.0) {
+      bar = Transform.translate(
+        offset: Offset(0.0, _liftOffset),
         child: bar,
       );
     }
