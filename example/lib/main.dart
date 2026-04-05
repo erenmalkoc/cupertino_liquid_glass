@@ -4,18 +4,28 @@ import 'package:cupertino_liquid_glass/cupertino_liquid_glass.dart';
 void main() => runApp(const LiquidGlassExampleApp());
 
 /// Root application widget that demonstrates the cupertino_liquid_glass package.
-class LiquidGlassExampleApp extends StatelessWidget {
+class LiquidGlassExampleApp extends StatefulWidget {
   const LiquidGlassExampleApp({super.key});
 
   @override
+  State<LiquidGlassExampleApp> createState() => _LiquidGlassExampleAppState();
+}
+
+class _LiquidGlassExampleAppState extends State<LiquidGlassExampleApp> {
+  bool _isDark = false;
+
+  @override
   Widget build(BuildContext context) {
-    return const CupertinoApp(
+    return CupertinoApp(
       title: 'Liquid Glass Demo',
       theme: CupertinoThemeData(
-        brightness: Brightness.light,
+        brightness: _isDark ? Brightness.dark : Brightness.light,
         primaryColor: CupertinoColors.activeBlue,
       ),
-      home: LiquidGlassHomePage(),
+      home: LiquidGlassHomePage(
+        isDark: _isDark,
+        onToggleTheme: () => setState(() => _isDark = !_isDark),
+      ),
     );
   }
 }
@@ -23,7 +33,14 @@ class LiquidGlassExampleApp extends StatelessWidget {
 /// Main demo page showing a scrollable list with a floating glass nav bar
 /// at the top and a glass bottom tab bar.
 class LiquidGlassHomePage extends StatefulWidget {
-  const LiquidGlassHomePage({super.key});
+  final bool isDark;
+  final VoidCallback onToggleTheme;
+
+  const LiquidGlassHomePage({
+    super.key,
+    required this.isDark,
+    required this.onToggleTheme,
+  });
 
   @override
   State<LiquidGlassHomePage> createState() => _LiquidGlassHomePageState();
@@ -56,8 +73,13 @@ class _LiquidGlassHomePageState extends State<LiquidGlassHomePage> {
               title: Text(_tabs[_selectedTab]),
               trailing: CupertinoButton(
                 padding: EdgeInsets.zero,
-                onPressed: () {},
-                child: const Icon(CupertinoIcons.ellipsis_circle, size: 22),
+                onPressed: widget.onToggleTheme,
+                child: Icon(
+                  widget.isDark
+                      ? CupertinoIcons.sun_max_fill
+                      : CupertinoIcons.moon_fill,
+                  size: 22,
+                ),
               ),
             ),
           ),
