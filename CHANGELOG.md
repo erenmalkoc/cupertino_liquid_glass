@@ -1,3 +1,7 @@
+## 0.4.1
+
+* **Docs**: Updated README showcase with animated GIF, removed unused image assets.
+
 ## 0.4.0
 
 * **Bottom Bar Overhaul**: Increased bar height to 56 pt, icon size to 28 pt, touch targets to 48 pt for better usability.
