@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/liquid_glass_banner.png" alt="Cupertino Liquid Glass Banner" width="100%" />
+  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/mobile-gif.gif" width="320" alt="Liquid Glass Demo" />
 </p>
 
 <p align="center">
@@ -32,12 +32,6 @@ A premium Flutter widget that replicates the native iOS frosted-glass material e
 | **Apple HIG compliant** | Bottom bar with 56 pt height, 28 pt icons, 48 pt touch targets for comfortable interaction. |
 | **Rubber banding** | Elastic scale animation (8%) on horizontal drag — the bar expands during swipe and springs back on release. |
 | **Glass icon effect** | Dock-style magnification and glass refraction glow on icons as the selector passes over them. |
-
-## Preview
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/mobile-gif.gif" width="320" alt="Liquid Glass Demo" />
-</p>
 
 ## Getting started
 
