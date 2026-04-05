@@ -90,9 +90,9 @@ class LiquidGlassThemeData {
 
   /// Creates a [LiquidGlassThemeData] with fully custom values.
   const LiquidGlassThemeData({
-    this.blurSigma = 28.0,
+    this.blurSigma = 25.0,
     this.tintColor = CupertinoColors.white,
-    this.tintOpacity = 0.55,
+    this.tintOpacity = 0.65,
     this.borderRadius = const BorderRadius.all(Radius.circular(20.0)),
     this.edgeLightColor = const Color(0x50FFFFFF),
     this.edgeShadowColor = const Color(0x10000000),
@@ -112,9 +112,9 @@ class LiquidGlassThemeData {
   /// shadow, noise grain, and a soft specular highlight across the top edge.
   factory LiquidGlassThemeData.light() {
     return LiquidGlassThemeData(
-      blurSigma: 28.0,
+      blurSigma: 25.0,
       tintColor: CupertinoColors.white,
-      tintOpacity: 0.45,
+      tintOpacity: 0.65,
       borderRadius: const BorderRadius.all(Radius.circular(20.0)),
       edgeLightColor: const Color(0x60FFFFFF),
       edgeShadowColor: const Color(0x08000000),
@@ -152,9 +152,9 @@ class LiquidGlassThemeData {
   /// dark backgrounds.
   factory LiquidGlassThemeData.dark() {
     return LiquidGlassThemeData(
-      blurSigma: 32.0,
+      blurSigma: 28.0,
       tintColor: const Color(0xFF1C1C1E),
-      tintOpacity: 0.52,
+      tintOpacity: 0.55,
       borderRadius: const BorderRadius.all(Radius.circular(20.0)),
       edgeLightColor: const Color(0x40FFFFFF),
       edgeShadowColor: const Color(0x20000000),

@@ -24,8 +24,26 @@ class LiquidGlassBottomBarItem {
   });
 }
 
+/// Apple HIG standard tab bar height (excluding safe area).
+const double _kTabBarHeight = 49.0;
+
+/// Apple HIG minimum touch target size.
+const double _kMinHitTarget = 44.0;
+
+/// Apple HIG standard icon size for tab bars.
+const double _kIconSize = 25.0;
+
+/// Apple HIG standard label font size for tab bars.
+const double _kLabelFontSize = 10.0;
+
 /// A pre-built bottom tab bar wrapped in a [CupertinoLiquidGlass] surface,
 /// featuring a sliding fluid indicator with spring physics.
+///
+/// Follows Apple HIG specifications:
+/// * Bar height: 49 pt (+ 34 pt safe area on Face ID devices)
+/// * Icon size: 25 pt
+/// * Touch target: minimum 44x44 pt
+/// * Horizontal distribution: equal width per tab
 ///
 /// The selected tab is highlighted by a glass pill that slides between tabs
 /// using [SpringSimulation] for a premium, bouncy feel. The indicator
@@ -45,6 +63,8 @@ class LiquidGlassBottomBarItem {
 ///   continuously as the selector slides past them.
 /// * **Bloom glow** — the selector casts a soft colored glow in the
 ///   [activeColor] onto the glass surface.
+/// * **Scroll-aware resizing** — optional scroll-driven scale animation
+///   with spring physics, shrinking to 85% when scrolling.
 ///
 /// ## Example
 ///
@@ -89,9 +109,15 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
 
   /// The spring physics used for the sliding selector animation.
   ///
-  /// Defaults to a slightly under-damped spring that produces a subtle
-  /// overshoot for a premium feel.
+  /// Defaults to an Apple-like spring with ~0.35s response and 0.75
+  /// damping fraction for a subtle overshoot.
   final SpringDescription? springDescription;
+
+  /// An optional [ScrollController] to enable scroll-aware resizing.
+  ///
+  /// When provided, the bar scales down to 85% during active scrolling
+  /// and springs back to full size when scrolling stops.
+  final ScrollController? scrollController;
 
   /// Creates a [CupertinoLiquidGlassBottomBar].
   const CupertinoLiquidGlassBottomBar({
@@ -106,6 +132,7 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.activeColor,
     this.inactiveColor,
     this.springDescription,
+    this.scrollController,
   });
 
   @override
@@ -115,8 +142,9 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
 
 class _CupertinoLiquidGlassBottomBarState
     extends State<CupertinoLiquidGlassBottomBar>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _scaleController;
 
   /// Current fractional index of the selector (0.0 = first tab, etc.).
   double _position = 0.0;
@@ -127,15 +155,25 @@ class _CupertinoLiquidGlassBottomBarState
   /// Whether the user is actively dragging.
   bool _isDragging = false;
 
-  /// Default spring — slightly under-damped for a subtle overshoot.
+  /// Current scale for scroll-aware resizing.
+  double _scale = 1.0;
+
+  /// Apple-like spring: ~0.35s response, 0.75 damping fraction.
+  /// Reverse-engineered from SwiftUI spring(.bouncy) defaults.
   static const _defaultSpring = SpringDescription(
     mass: 1.0,
-    stiffness: 380.0,
-    damping: 26.0,
+    stiffness: 320.0,
+    damping: 22.0,
   );
 
-  SpringDescription get _spring =>
-      widget.springDescription ?? _defaultSpring;
+  /// Spring for scale animation (smoother, less bouncy).
+  static const _scaleSpring = SpringDescription(
+    mass: 1.0,
+    stiffness: 260.0,
+    damping: 24.0,
+  );
+
+  SpringDescription get _spring => widget.springDescription ?? _defaultSpring;
 
   int get _maxIndex => widget.items.length - 1;
 
@@ -145,6 +183,9 @@ class _CupertinoLiquidGlassBottomBarState
     _position = widget.currentIndex.toDouble();
     _controller = AnimationController.unbounded(vsync: this)
       ..addListener(_onTick);
+    _scaleController = AnimationController.unbounded(vsync: this, value: 1.0)
+      ..addListener(_onScaleTick);
+    widget.scrollController?.addListener(_onScroll);
   }
 
   @override
@@ -153,11 +194,17 @@ class _CupertinoLiquidGlassBottomBarState
     if (oldWidget.currentIndex != widget.currentIndex && !_isDragging) {
       _animateTo(widget.currentIndex);
     }
+    if (oldWidget.scrollController != widget.scrollController) {
+      oldWidget.scrollController?.removeListener(_onScroll);
+      widget.scrollController?.addListener(_onScroll);
+    }
   }
 
   @override
   void dispose() {
+    widget.scrollController?.removeListener(_onScroll);
     _controller.dispose();
+    _scaleController.dispose();
     super.dispose();
   }
 
@@ -172,6 +219,12 @@ class _CupertinoLiquidGlassBottomBarState
     });
   }
 
+  void _onScaleTick() {
+    setState(() {
+      _scale = _scaleController.value;
+    });
+  }
+
   void _animateTo(int index) {
     _controller.animateWith(
       SpringSimulation(
@@ -181,6 +234,38 @@ class _CupertinoLiquidGlassBottomBarState
         _velocity,
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scroll-aware resizing
+  // ---------------------------------------------------------------------------
+
+  bool _isScrolling = false;
+
+  void _onScroll() {
+    final sc = widget.scrollController;
+    if (sc == null || !sc.hasClients) return;
+
+    if (!_isScrolling) {
+      _isScrolling = true;
+      // Scale down to 85% during scroll.
+      _scaleController.animateWith(
+        SpringSimulation(_scaleSpring, _scale, 0.85, 0.0),
+      );
+    }
+
+    // Schedule a check to restore scale when scrolling stops.
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (!mounted) return;
+      final currentSc = widget.scrollController;
+      if (currentSc == null || !currentSc.hasClients) return;
+      if (!currentSc.position.isScrollingNotifier.value) {
+        _isScrolling = false;
+        _scaleController.animateWith(
+          SpringSimulation(_scaleSpring, _scale, 1.0, 0.0),
+        );
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -202,7 +287,6 @@ class _CupertinoLiquidGlassBottomBarState
     setState(() {
       _isDragging = true;
       _position = (_position + delta).clamp(0.0, _maxIndex.toDouble());
-      // Approximate velocity for the visual stretch effect.
       _velocity = delta * 60;
     });
   }
@@ -212,7 +296,6 @@ class _CupertinoLiquidGlassBottomBarState
     final tabWidth = contentWidth / widget.items.length;
     final flingVelocity = details.velocity.pixelsPerSecond.dx / tabWidth;
 
-    // Use fling direction to influence the target when velocity is high.
     int target = _position.round();
     if (flingVelocity.abs() > 3.0) {
       target = flingVelocity > 0 ? _position.ceil() : _position.floor();
@@ -238,23 +321,22 @@ class _CupertinoLiquidGlassBottomBarState
 
     final resolvedActive =
         widget.activeColor ?? CupertinoTheme.of(context).primaryColor;
-    final resolvedInactive =
-        widget.inactiveColor ??
+    final resolvedInactive = widget.inactiveColor ??
         (isDark
             ? CupertinoColors.systemGrey
             : CupertinoColors.systemGrey2);
 
-    return Padding(
+    Widget bar = Padding(
       padding: EdgeInsets.only(
-        bottom: bottomPadding + 4.0,
+        bottom: bottomPadding,
         left: widget.horizontalMargin,
         right: widget.horizontalMargin,
       ),
       child: CupertinoLiquidGlass(
         theme: widget.theme,
-        borderRadius: widget.borderRadius ??
-            const BorderRadius.all(Radius.circular(26.0)),
-        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 6.0),
+        borderRadius:
+            widget.borderRadius ?? const BorderRadius.all(Radius.circular(26.0)),
+        height: _kTabBarHeight,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final contentWidth = constraints.maxWidth;
@@ -271,16 +353,13 @@ class _CupertinoLiquidGlassBottomBarState
                   velocity: _velocity,
                   tabCount: widget.items.length,
                   activeColor: resolvedActive,
-                  selectorRadius: 18.0,
+                  selectorRadius: 16.0,
                   isDark: isDark,
                 ),
                 child: Row(
                   children: List.generate(widget.items.length, (i) {
                     final item = widget.items[i];
 
-                    // Smooth interpolation: each icon blends between
-                    // inactive and active color based on proximity to
-                    // the selector.
                     final proximity =
                         (1.0 - (_position - i).abs()).clamp(0.0, 1.0);
                     final color = Color.lerp(
@@ -298,18 +377,18 @@ class _CupertinoLiquidGlassBottomBarState
                     )!;
 
                     return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: SizedBox(
+                        height: _kMinHitTarget,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(iconData, color: color, size: 24.0),
-                            const SizedBox(height: 2.0),
+                            Icon(iconData, color: color, size: _kIconSize),
+                            const SizedBox(height: 1.0),
                             Text(
                               item.label,
                               style: TextStyle(
-                                fontSize: 10.0,
+                                fontSize: _kLabelFontSize,
                                 fontWeight: fontWeight,
                                 color: color,
                               ),
@@ -328,6 +407,17 @@ class _CupertinoLiquidGlassBottomBarState
         ),
       ),
     );
+
+    // Apply scroll-aware scale transform.
+    if (widget.scrollController != null && _scale != 1.0) {
+      bar = Transform.scale(
+        scale: _scale,
+        alignment: Alignment.bottomCenter,
+        child: bar,
+      );
+    }
+
+    return bar;
   }
 }
 
@@ -358,16 +448,16 @@ class _SelectorPainter extends CustomPainter {
 
     final tabWidth = size.width / tabCount;
 
-    // Velocity-based stretch: faster movement → wider pill.
+    // Velocity-based stretch: faster movement -> wider pill.
     final absVel = velocity.abs().clamp(0.0, 20.0);
-    final stretch = 1.0 + absVel / 55.0; // max ≈ 1.36×
+    final stretch = 1.0 + absVel / 55.0; // max ~1.36x
 
-    final baseWidth = tabWidth * 0.86;
+    final baseWidth = tabWidth * 0.82;
     final selectorWidth = baseWidth * stretch;
     final x = position * tabWidth + (tabWidth - selectorWidth) / 2;
 
     final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(x, 1.0, selectorWidth, size.height - 2.0),
+      Rect.fromLTWH(x, 2.0, selectorWidth, size.height - 4.0),
       Radius.circular(selectorRadius),
     );
 
@@ -375,8 +465,8 @@ class _SelectorPainter extends CustomPainter {
     canvas.drawRRect(
       rrect.inflate(3.0),
       Paint()
-        ..color = activeColor.withValues(alpha: 0.20)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12.0),
+        ..color = activeColor.withValues(alpha: 0.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0),
     );
 
     // 2. Fill — subtle translucent pill.
