@@ -1,3 +1,12 @@
+## 0.4.0
+
+* **Apple HIG Compliance**: Bottom bar dimensions now match iOS standards — 49 pt height, 25 pt icons, 44 pt minimum touch targets.
+* **Rubber Banding**: Bottom bar scales up elastically during horizontal drag and springs back on release.
+* **Theme Tuning**: Light mode tint opacity adjusted to 65%, dark mode to 55%, blur sigma values aligned with `UIBlurEffect.systemChromeMaterial`.
+* **Dark Mode Toggle**: Example app now includes a light/dark theme switcher in the nav bar.
+* **pub.dev Fix**: Shortened package description to comply with 180-character limit (150/160 points → 160/160).
+* **Bug Fix**: Added missing `cupertino_icons` dependency to example app.
+
 ## 0.3.0
 
 * **Sliding Fluid Interaction**: Added spring physics and velocity-based stretching to the bottom bar.

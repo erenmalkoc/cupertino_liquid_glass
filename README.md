@@ -29,6 +29,8 @@ A premium Flutter widget that replicates the native iOS frosted-glass material e
 | **Fully customizable** | Override `blurSigma`, `tintOpacity`, `borderRadius`, `borderColor`, `borderWidth`, and `specularGradient` per-widget. |
 | **Theme interpolation** | `LiquidGlassThemeData.lerp()` enables smooth animated transitions between any two theme configurations. |
 | **Pre-built bars** | `CupertinoLiquidGlassNavBar` and `CupertinoLiquidGlassBottomBar` — drop-in replacements with safe-area handling. |
+| **Apple HIG compliant** | Bottom bar follows iOS standards: 49 pt height, 25 pt icons, 44 pt touch targets. |
+| **Rubber banding** | Elastic scale animation on horizontal drag — the bar expands during swipe and springs back on release. |
 
 ## Preview
 
@@ -51,7 +53,7 @@ A premium Flutter widget that replicates the native iOS frosted-glass material e
 
 ```yaml
 dependencies:
-  cupertino_liquid_glass: ^0.1.0
+  cupertino_liquid_glass: ^0.4.0
 ```
 
 ```bash
@@ -210,6 +212,7 @@ A floating glass tab bar with safe-area handling.
 | `borderRadius` | `BorderRadius?` | 26 px | Corner radius |
 | `horizontalMargin` | `double` | 8.0 | Horizontal margin from screen edges |
 | `useSafeArea` | `bool` | true | Include home indicator padding |
+| `springDescription` | `SpringDescription?` | Apple-like | Custom spring physics for selector animation |
 
 ## Performance tips
 

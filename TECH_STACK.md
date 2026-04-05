@@ -36,9 +36,10 @@
 ### Animation & Physics
 | API | Usage |
 |-----|-------|
-| `AnimationController` | Drives spring-based tab transitions |
+| `AnimationController` | Drives spring-based tab transitions and rubber banding |
 | `SpringSimulation` | Bouncy, natural-feeling animations |
 | `SpringDescription` | Configurable mass/stiffness/damping |
+| `Transform.scale` | Elastic rubber banding effect during drag |
 
 ### Gestures & Interaction
 | API | Usage |

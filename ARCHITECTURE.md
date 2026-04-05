@@ -58,8 +58,8 @@ CupertinoLiquidGlass (StatelessWidget)
 Immutable configuration object controlling every visual parameter of the glass effect.
 
 **Factories:**
-- `LiquidGlassThemeData.light()` — Bright, matte preset (lower sigma, brighter tint)
-- `LiquidGlassThemeData.dark()` — Deep, contrasty preset (higher sigma, darker tint)
+- `LiquidGlassThemeData.light()` — Bright, matte preset (sigma 25, white tint 65% opacity)
+- `LiquidGlassThemeData.dark()` — Deep, contrasty preset (sigma 28, dark tint 55% opacity)
 
 **Key Methods:**
 - `copyWith(...)` — Returns modified copy
@@ -101,10 +101,24 @@ CupertinoLiquidGlassBottomBar (StatefulWidget)
 ```
 
 **State Management:**
-- `AnimationController` drives spring animations
-- `SpringSimulation` provides bouncy transitions (mass: 1.0, stiffness: 380.0, damping: 26.0)
+- `_controller` (`AnimationController`) drives spring-based selector animations
+- `_elasticController` (`AnimationController`) drives rubber banding scale
+- `SpringSimulation` provides bouncy transitions (mass: 1.0, stiffness: 320.0, damping: 22.0)
 - `_position` (fractional index) tracks selector location
 - `_velocity` drives stretch effect during fast movement
+- `_elasticScale` tracks rubber banding scale (1.0 rest, 1.04 expanded)
+
+**Rubber Banding (Elasticity):**
+- On `onHorizontalDragStart`: bar scales up to 104% via spring animation
+- On `onHorizontalDragEnd`: bar springs back to 100%
+- Anchor point: `Alignment.bottomCenter` (expands upward)
+- Spring: mass 1.0, stiffness 300.0, damping 20.0 (slight overshoot)
+
+**Apple HIG Compliance:**
+- Bar height: 49 pt (`_kTabBarHeight`)
+- Icon size: 25 pt (`_kIconSize`)
+- Touch target: 44 pt minimum (`_kMinHitTarget`)
+- Label font: 10 pt (`_kLabelFontSize`)
 
 **Supporting Class:**
 - `LiquidGlassBottomBarItem` — Data class holding `icon`, `activeIcon`, and `label`
@@ -129,20 +143,24 @@ Layer 0 (base): BackdropFilter Gaussian blur
 ```
 User Input (tap/drag)
     │
-    ▼
-GestureDetector → State Update (_position, _velocity)
+    ├─► GestureDetector → State Update (_position, _velocity)
+    │       │
+    │       ▼
+    │   _controller (SpringSimulation) → Selector Animation
+    │       │
+    │       ▼
+    │   CustomPainter (_SelectorPainter) → Visual Update
+    │       │
+    │       ▼
+    │   Icon/Label Color Interpolation (proximity-based)
+    │       │
+    │       ▼
+    │   onTap Callback → Parent Widget
     │
-    ▼
-AnimationController (SpringSimulation)
-    │
-    ▼
-CustomPainter (_SelectorPainter) → Visual Update
-    │
-    ▼
-Icon/Label Color Interpolation (proximity-based)
-    │
-    ▼
-onTap Callback → Parent Widget
+    └─► _elasticController (SpringSimulation) → Rubber Band Scale
+            │
+            ▼
+        Transform.scale → Bar Expansion/Contraction
 ```
 
 ## Performance Architecture

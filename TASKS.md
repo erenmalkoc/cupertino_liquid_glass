@@ -1,6 +1,6 @@
 # Tasks
 
-## Completed (v0.1.0 — v0.3.0)
+## Completed (v0.1.0 — v0.4.0)
 
 - [x] Core `CupertinoLiquidGlass` widget with BackdropFilter blur
 - [x] `LiquidGlassThemeData` with light/dark presets
@@ -21,6 +21,11 @@
 - [x] README, CHANGELOG, LICENSE documentation
 - [x] Barrel export file for clean public API
 - [x] DartDoc comments on all public APIs
+- [x] Apple HIG compliant bottom bar (49pt height, 25pt icons, 44pt touch targets)
+- [x] Rubber banding (elasticity) on bottom bar horizontal drag
+- [x] Theme values aligned with UIBlurEffect.systemChromeMaterial
+- [x] Light/dark theme toggle in example app
+- [x] pub.dev description length fix (160/160 points)
 
 ## Planned
 
@@ -44,7 +49,6 @@
 
 ### Low Priority
 - [ ] CI/CD pipeline (GitHub Actions: analyze, test, publish)
-- [ ] Interactive example app with theme switcher (light/dark toggle)
 - [ ] Performance benchmarks and profiling documentation
 - [ ] Screenshot automation for pub.dev listing
 - [ ] Additional example scenes (settings page, chat UI, music player)
