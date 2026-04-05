@@ -348,6 +348,10 @@ class _CupertinoLiquidGlassBottomBarState
                         proximity,
                       )!;
 
+                      // Dock-style magnification: icons scale up as
+                      // the selector approaches.
+                      final iconScale = 1.0 + proximity * 0.18;
+
                       return Expanded(
                         child: SizedBox(
                           height: _kMinHitTarget,
@@ -355,7 +359,17 @@ class _CupertinoLiquidGlassBottomBarState
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(iconData, color: color, size: _kIconSize),
+                              Transform.scale(
+                                scale: iconScale,
+                                child: _GlassIcon(
+                                  icon: iconData,
+                                  color: color,
+                                  size: _kIconSize,
+                                  glassIntensity: proximity,
+                                  activeColor: resolvedActive,
+                                  isDark: isDark,
+                                ),
+                              ),
                               const SizedBox(height: 1.0),
                               Text(
                                 item.label,
@@ -392,6 +406,89 @@ class _CupertinoLiquidGlassBottomBarState
 
     return bar;
   }
+}
+
+/// An icon with a glass refraction glow that intensifies based on
+/// [glassIntensity] (0.0 = no effect, 1.0 = full glass).
+class _GlassIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final double size;
+  final double glassIntensity;
+  final Color activeColor;
+  final bool isDark;
+
+  const _GlassIcon({
+    required this.icon,
+    required this.color,
+    required this.size,
+    required this.glassIntensity,
+    required this.activeColor,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _GlassIconPainter(
+        intensity: glassIntensity,
+        activeColor: activeColor,
+        isDark: isDark,
+        size: size,
+      ),
+      child: Icon(icon, color: color, size: size),
+    );
+  }
+}
+
+/// Paints a soft glass refraction halo behind the icon.
+class _GlassIconPainter extends CustomPainter {
+  final double intensity;
+  final Color activeColor;
+  final bool isDark;
+  final double size;
+
+  const _GlassIconPainter({
+    required this.intensity,
+    required this.activeColor,
+    required this.isDark,
+    required this.size,
+  });
+
+  @override
+  void paint(Canvas canvas, Size canvasSize) {
+    if (intensity < 0.05) return;
+
+    final center = Offset(canvasSize.width / 2, canvasSize.height / 2);
+    final radius = size * 0.55;
+
+    // Outer colored glow.
+    canvas.drawCircle(
+      center,
+      radius * (1.0 + intensity * 0.3),
+      Paint()
+        ..color = activeColor.withValues(alpha: intensity * 0.22)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8.0 + intensity * 4.0),
+    );
+
+    // Inner glass highlight — bright specular dot.
+    canvas.drawCircle(
+      center.translate(0, -radius * 0.15),
+      radius * 0.5 * intensity,
+      Paint()
+        ..color = (isDark
+                ? const Color.fromRGBO(255, 255, 255, 1.0)
+                : const Color.fromRGBO(255, 255, 255, 1.0))
+            .withValues(alpha: intensity * 0.18)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4.0 + intensity * 2.0),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GlassIconPainter old) =>
+      intensity != old.intensity ||
+      activeColor != old.activeColor ||
+      isDark != old.isDark;
 }
 
 /// Paints the sliding glass selector pill behind the active tab icon.
