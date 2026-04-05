@@ -59,12 +59,12 @@ const double _kLabelFontSize = 10.0;
 ///   movement and contracts back when settling.
 /// * **Interactive drag** — horizontal drag gesture moves the selector
 ///   in real-time; fling velocity influences the target tab.
+/// * **Rubber banding** — the bar scales up elastically during horizontal
+///   drag and springs back to rest when released.
 /// * **Smooth color interpolation** — icon and label colors blend
 ///   continuously as the selector slides past them.
 /// * **Bloom glow** — the selector casts a soft colored glow in the
 ///   [activeColor] onto the glass surface.
-/// * **Scroll-aware resizing** — optional scroll-driven scale animation
-///   with spring physics, shrinking to 85% when scrolling.
 ///
 /// ## Example
 ///
@@ -113,12 +113,6 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
   /// damping fraction for a subtle overshoot.
   final SpringDescription? springDescription;
 
-  /// An optional [ScrollController] to enable scroll-aware resizing.
-  ///
-  /// When provided, the bar scales down to 85% during active scrolling
-  /// and springs back to full size when scrolling stops.
-  final ScrollController? scrollController;
-
   /// Creates a [CupertinoLiquidGlassBottomBar].
   const CupertinoLiquidGlassBottomBar({
     super.key,
@@ -132,7 +126,6 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.activeColor,
     this.inactiveColor,
     this.springDescription,
-    this.scrollController,
   });
 
   @override
@@ -159,7 +152,6 @@ class _CupertinoLiquidGlassBottomBarState
   double _elasticScale = 1.0;
 
   /// Apple-like spring: ~0.35s response, 0.75 damping fraction.
-  /// Reverse-engineered from SwiftUI spring(.bouncy) defaults.
   static const _defaultSpring = SpringDescription(
     mass: 1.0,
     stiffness: 320.0,
@@ -173,7 +165,7 @@ class _CupertinoLiquidGlassBottomBarState
     damping: 20.0,
   );
 
-  /// Scale factor when bar is expanded during scroll.
+  /// Scale factor when bar is expanded during drag.
   static const _expandedScale = 1.04;
 
   SpringDescription get _spring => widget.springDescription ?? _defaultSpring;
@@ -188,7 +180,6 @@ class _CupertinoLiquidGlassBottomBarState
       ..addListener(_onTick);
     _elasticController = AnimationController.unbounded(vsync: this, value: 1.0)
       ..addListener(_onElasticTick);
-    widget.scrollController?.addListener(_onScroll);
   }
 
   @override
@@ -197,15 +188,10 @@ class _CupertinoLiquidGlassBottomBarState
     if (oldWidget.currentIndex != widget.currentIndex && !_isDragging) {
       _animateTo(widget.currentIndex);
     }
-    if (oldWidget.scrollController != widget.scrollController) {
-      oldWidget.scrollController?.removeListener(_onScroll);
-      widget.scrollController?.addListener(_onScroll);
-    }
   }
 
   @override
   void dispose() {
-    widget.scrollController?.removeListener(_onScroll);
     _controller.dispose();
     _elasticController.dispose();
     super.dispose();
@@ -240,39 +226,6 @@ class _CupertinoLiquidGlassBottomBarState
   }
 
   // ---------------------------------------------------------------------------
-  // Scroll-aware rubber banding (elasticity)
-  // ---------------------------------------------------------------------------
-
-  bool _isScrolling = false;
-
-  void _onScroll() {
-    final sc = widget.scrollController;
-    if (sc == null || !sc.hasClients) return;
-
-    if (!_isScrolling) {
-      _isScrolling = true;
-      // Expand bar with elastic spring.
-      _elasticController.animateWith(
-        SpringSimulation(
-            _elasticSpring, _elasticScale, _expandedScale, 0.0),
-      );
-    }
-
-    // Check to restore size when scrolling stops.
-    Future.delayed(const Duration(milliseconds: 150), () {
-      if (!mounted) return;
-      final currentSc = widget.scrollController;
-      if (currentSc == null || !currentSc.hasClients) return;
-      if (!currentSc.position.isScrollingNotifier.value) {
-        _isScrolling = false;
-        _elasticController.animateWith(
-          SpringSimulation(_elasticSpring, _elasticScale, 1.0, 0.0),
-        );
-      }
-    });
-  }
-
-  // ---------------------------------------------------------------------------
   // Gestures
   // ---------------------------------------------------------------------------
 
@@ -285,11 +238,18 @@ class _CupertinoLiquidGlassBottomBarState
     _animateTo(index);
   }
 
+  void _onDragStart(DragStartDetails details) {
+    _isDragging = true;
+    // Rubber band: expand bar on drag start.
+    _elasticController.animateWith(
+      SpringSimulation(_elasticSpring, _elasticScale, _expandedScale, 0.0),
+    );
+  }
+
   void _onDragUpdate(DragUpdateDetails details, double contentWidth) {
     final tabWidth = contentWidth / widget.items.length;
     final delta = details.delta.dx / tabWidth;
     setState(() {
-      _isDragging = true;
       _position = (_position + delta).clamp(0.0, _maxIndex.toDouble());
       _velocity = delta * 60;
     });
@@ -309,6 +269,11 @@ class _CupertinoLiquidGlassBottomBarState
     _velocity = flingVelocity;
     widget.onTap?.call(target);
     _animateTo(target);
+
+    // Rubber band: spring back to rest on release.
+    _elasticController.animateWith(
+      SpringSimulation(_elasticSpring, _elasticScale, 1.0, 0.0),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -344,79 +309,80 @@ class _CupertinoLiquidGlassBottomBarState
         child: SizedBox(
           height: _kTabBarHeight,
           child: LayoutBuilder(
-          builder: (context, constraints) {
-            final contentWidth = constraints.maxWidth;
+            builder: (context, constraints) {
+              final contentWidth = constraints.maxWidth;
 
-            return GestureDetector(
-              onTapUp: (d) => _onTapUp(d, contentWidth),
-              onHorizontalDragUpdate: (d) =>
-                  _onDragUpdate(d, contentWidth),
-              onHorizontalDragEnd: (d) => _onDragEnd(d, contentWidth),
-              behavior: HitTestBehavior.opaque,
-              child: CustomPaint(
-                painter: _SelectorPainter(
-                  position: _position,
-                  velocity: _velocity,
-                  tabCount: widget.items.length,
-                  activeColor: resolvedActive,
-                  selectorRadius: 16.0,
-                  isDark: isDark,
-                ),
-                child: Row(
-                  children: List.generate(widget.items.length, (i) {
-                    final item = widget.items[i];
+              return GestureDetector(
+                onTapUp: (d) => _onTapUp(d, contentWidth),
+                onHorizontalDragStart: _onDragStart,
+                onHorizontalDragUpdate: (d) =>
+                    _onDragUpdate(d, contentWidth),
+                onHorizontalDragEnd: (d) => _onDragEnd(d, contentWidth),
+                behavior: HitTestBehavior.opaque,
+                child: CustomPaint(
+                  painter: _SelectorPainter(
+                    position: _position,
+                    velocity: _velocity,
+                    tabCount: widget.items.length,
+                    activeColor: resolvedActive,
+                    selectorRadius: 16.0,
+                    isDark: isDark,
+                  ),
+                  child: Row(
+                    children: List.generate(widget.items.length, (i) {
+                      final item = widget.items[i];
 
-                    final proximity =
-                        (1.0 - (_position - i).abs()).clamp(0.0, 1.0);
-                    final color = Color.lerp(
-                      resolvedInactive,
-                      resolvedActive,
-                      proximity,
-                    )!;
-                    final iconData = proximity > 0.5
-                        ? (item.activeIcon ?? item.icon)
-                        : item.icon;
-                    final fontWeight = FontWeight.lerp(
-                      FontWeight.w400,
-                      FontWeight.w600,
-                      proximity,
-                    )!;
+                      final proximity =
+                          (1.0 - (_position - i).abs()).clamp(0.0, 1.0);
+                      final color = Color.lerp(
+                        resolvedInactive,
+                        resolvedActive,
+                        proximity,
+                      )!;
+                      final iconData = proximity > 0.5
+                          ? (item.activeIcon ?? item.icon)
+                          : item.icon;
+                      final fontWeight = FontWeight.lerp(
+                        FontWeight.w400,
+                        FontWeight.w600,
+                        proximity,
+                      )!;
 
-                    return Expanded(
-                      child: SizedBox(
-                        height: _kMinHitTarget,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(iconData, color: color, size: _kIconSize),
-                            const SizedBox(height: 1.0),
-                            Text(
-                              item.label,
-                              style: TextStyle(
-                                fontSize: _kLabelFontSize,
-                                fontWeight: fontWeight,
-                                color: color,
+                      return Expanded(
+                        child: SizedBox(
+                          height: _kMinHitTarget,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(iconData, color: color, size: _kIconSize),
+                              const SizedBox(height: 1.0),
+                              Text(
+                                item.label,
+                                style: TextStyle(
+                                  fontSize: _kLabelFontSize,
+                                  fontWeight: fontWeight,
+                                  color: color,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
         ),
       ),
     );
 
-    // Apply scroll-aware rubber banding (elastic scale).
-    if (widget.scrollController != null && _elasticScale != 1.0) {
+    // Apply rubber banding elastic scale during drag.
+    if (_elasticScale != 1.0) {
       bar = Transform.scale(
         scale: _elasticScale,
         alignment: Alignment.bottomCenter,
@@ -429,9 +395,6 @@ class _CupertinoLiquidGlassBottomBarState
 }
 
 /// Paints the sliding glass selector pill behind the active tab icon.
-///
-/// The selector stretches horizontally based on [velocity] and casts a soft
-/// bloom glow in [activeColor] onto the glass surface.
 class _SelectorPainter extends CustomPainter {
   final double position;
   final double velocity;
