@@ -31,8 +31,15 @@ class LiquidGlassHomePage extends StatefulWidget {
 
 class _LiquidGlassHomePageState extends State<LiquidGlassHomePage> {
   int _selectedTab = 0;
+  final ScrollController _scrollController = ScrollController();
 
   static const _tabs = ['Home', 'Search', 'Settings'];
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +77,7 @@ class _LiquidGlassHomePageState extends State<LiquidGlassHomePage> {
             child: CupertinoLiquidGlassBottomBar(
               currentIndex: _selectedTab,
               onTap: (index) => setState(() => _selectedTab = index),
+              scrollController: _scrollController,
               items: const [
                 LiquidGlassBottomBarItem(
                   icon: CupertinoIcons.house,
@@ -99,6 +107,7 @@ class _LiquidGlassHomePageState extends State<LiquidGlassHomePage> {
     final topPadding = MediaQuery.of(context).padding.top;
 
     return ListView.builder(
+      controller: _scrollController,
       padding: EdgeInsets.only(top: topPadding + 70, bottom: 120),
       itemCount: 30,
       itemBuilder: (context, index) {

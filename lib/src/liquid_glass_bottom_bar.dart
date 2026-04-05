@@ -340,8 +340,10 @@ class _CupertinoLiquidGlassBottomBarState
         theme: widget.theme,
         borderRadius:
             widget.borderRadius ?? const BorderRadius.all(Radius.circular(26.0)),
-        height: _kTabBarHeight,
-        child: LayoutBuilder(
+        padding: EdgeInsets.zero,
+        child: SizedBox(
+          height: _kTabBarHeight,
+          child: LayoutBuilder(
           builder: (context, constraints) {
             final contentWidth = constraints.maxWidth;
 
@@ -408,6 +410,7 @@ class _CupertinoLiquidGlassBottomBarState
               ),
             );
           },
+        ),
         ),
       ),
     );
