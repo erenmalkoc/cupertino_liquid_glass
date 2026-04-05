@@ -35,9 +35,7 @@ A premium Flutter widget that replicates the native iOS frosted-glass material e
 ## Preview
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/preview_light.png" width="300" alt="Light mode preview" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/preview_dark.png" width="300" alt="Dark mode preview" />
+  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/mobile-gif.gif" width="320" alt="Liquid Glass Demo" />
 </p>
 
 ## Getting started
