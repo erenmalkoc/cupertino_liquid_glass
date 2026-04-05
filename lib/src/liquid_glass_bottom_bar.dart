@@ -24,17 +24,17 @@ class LiquidGlassBottomBarItem {
   });
 }
 
-/// Apple HIG standard tab bar height (excluding safe area).
-const double _kTabBarHeight = 49.0;
+/// Tab bar height (excluding safe area).
+const double _kTabBarHeight = 56.0;
 
-/// Apple HIG minimum touch target size.
-const double _kMinHitTarget = 44.0;
+/// Minimum touch target size.
+const double _kMinHitTarget = 48.0;
 
-/// Apple HIG standard icon size for tab bars.
-const double _kIconSize = 25.0;
+/// Icon size for tab bars.
+const double _kIconSize = 28.0;
 
-/// Apple HIG standard label font size for tab bars.
-const double _kLabelFontSize = 10.0;
+/// Label font size for tab bars.
+const double _kLabelFontSize = 11.0;
 
 /// A pre-built bottom tab bar wrapped in a [CupertinoLiquidGlass] surface,
 /// featuring a sliding fluid indicator with spring physics.
@@ -166,7 +166,7 @@ class _CupertinoLiquidGlassBottomBarState
   );
 
   /// Scale factor when bar is expanded during drag.
-  static const _expandedScale = 1.04;
+  static const _expandedScale = 1.08;
 
   SpringDescription get _spring => widget.springDescription ?? _defaultSpring;
 
