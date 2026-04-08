@@ -16,7 +16,7 @@
 
 ---
 
-A premium Flutter widget that replicates the native iOS frosted-glass material effect (`UIBlurEffect.systemMaterial`) with real-time backdrop blur, dynamic light/dark theme adaptation, and specular highlight rendering. Optimized for 120 Hz ProMotion displays.
+A Flutter widget.
 
 ## Features
 
