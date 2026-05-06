@@ -531,32 +531,77 @@ class _ThemePage extends StatelessWidget {
 // Shared helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Full-screen vertical color bands — provides vivid content for the glass
-/// effect to blur and refract.
+/// Soft radial-gradient blobs on a neutral base — provides vivid, organic
+/// content for the glass effect to blur and refract, without looking like
+/// a flag or a rainbow.
 class _ColorfulBackground extends StatelessWidget {
-  static const _bands = [
-    Color(0xCCFF3B30),
-    Color(0xCCFF9500),
-    Color(0xCCFFCC00),
-    Color(0xCC34C759),
-    Color(0xCC00C7BE),
-    Color(0xCC007AFF),
-    Color(0xCC5856D6),
-    Color(0xCCAF52DE),
-    Color(0xCCFF2D55),
-    Color(0xCCFF3B30),
-  ];
-
   const _ColorfulBackground();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: _bands
-          .map((c) => Expanded(child: Container(color: c)))
-          .toList(),
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    return CustomPaint(
+      painter: _BlobPainter(isDark: isDark),
     );
   }
+}
+
+class _BlobPainter extends CustomPainter {
+  final bool isDark;
+  const _BlobPainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Neutral base
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..color =
+            isDark ? const Color(0xFF0C0C14) : const Color(0xFFF0F0F5),
+    );
+
+    final blobs = isDark ? _dark : _light;
+    for (final b in blobs) {
+      final center = Offset(size.width * b.x, size.height * b.y);
+      final radius = size.shortestSide * b.r;
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [b.color, b.color.withValues(alpha: 0)],
+          ).createShader(Rect.fromCircle(center: center, radius: radius)),
+      );
+    }
+  }
+
+  // Light: warm amber top-left, sky-blue top-right,
+  //        seafoam center, soft violet bottom-left, blush bottom-right.
+  static const _light = [
+    _Blob(0.10, 0.18, 1.05, Color(0x88FF9F0A)),
+    _Blob(0.88, 0.22, 0.95, Color(0x7030B0FF)),
+    _Blob(0.50, 0.52, 0.90, Color(0x6030D158)),
+    _Blob(0.12, 0.82, 0.95, Color(0x78BF5AF2)),
+    _Blob(0.85, 0.80, 0.90, Color(0x88FF375F)),
+  ];
+
+  // Dark: same hues, deeper and more muted.
+  static const _dark = [
+    _Blob(0.10, 0.18, 1.05, Color(0x60B86800)),
+    _Blob(0.88, 0.22, 0.95, Color(0x500060CC)),
+    _Blob(0.50, 0.52, 0.90, Color(0x44008830)),
+    _Blob(0.12, 0.82, 0.95, Color(0x507A20CC)),
+    _Blob(0.85, 0.80, 0.90, Color(0x60CC1040)),
+  ];
+
+  @override
+  bool shouldRepaint(_BlobPainter old) => isDark != old.isDark;
+}
+
+class _Blob {
+  final double x, y, r;
+  final Color color;
+  const _Blob(this.x, this.y, this.r, this.color);
 }
 
 /// Small ALLCAPS section header.
