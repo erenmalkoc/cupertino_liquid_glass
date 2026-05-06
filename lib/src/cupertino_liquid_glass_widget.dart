@@ -493,7 +493,7 @@ class _BloomPainter extends CustomPainter {
 ///   ),
 /// )
 /// ```
-class LiquidGlassDetachedButton extends StatelessWidget {
+class LiquidGlassDetachedButton extends StatefulWidget {
   /// The icon or widget displayed inside the button.
   final Widget child;
 
@@ -523,13 +523,53 @@ class LiquidGlassDetachedButton extends StatelessWidget {
   });
 
   @override
+  State<LiquidGlassDetachedButton> createState() =>
+      _LiquidGlassDetachedButtonState();
+}
+
+class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press;
+
+  @override
+  void initState() {
+    super.initState();
+    _press = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+  }
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails _) =>
+      _press.animateTo(1.0, curve: Curves.easeIn);
+
+  void _onTapUp(TapUpDetails _) {
+    _release();
+    widget.onTap?.call();
+  }
+
+  void _onTapCancel() => _release();
+
+  void _release() => _press.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.elasticOut,
+      );
+
+  @override
   Widget build(BuildContext context) {
     final brightness =
         CupertinoTheme.of(context).brightness ?? Brightness.light;
     final isDark = brightness == Brightness.dark;
-    final borderRadius = BorderRadius.circular(size / 2);
+    final borderRadius = BorderRadius.circular(widget.size / 2);
 
-    final resolvedTheme = theme ??
+    final resolvedTheme = widget.theme ??
         (isDark
             ? LiquidGlassThemeData.dark().copyWith(
                 tintOpacity: 0.28,
@@ -540,19 +580,19 @@ class LiquidGlassDetachedButton extends StatelessWidget {
                 blurSigma: 20.0,
               ));
 
-    Widget button = SizedBox(
-      width: size,
-      height: size,
+    final glassButton = SizedBox(
+      width: widget.size,
+      height: widget.size,
       child: Stack(
         children: [
           CupertinoLiquidGlass(
             theme: resolvedTheme,
             borderRadius: borderRadius,
-            width: size,
-            height: size,
-            child: Center(child: child),
+            width: widget.size,
+            height: widget.size,
+            child: Center(child: widget.child),
           ),
-          if (iridescent)
+          if (widget.iridescent)
             Positioned.fill(
               child: IgnorePointer(
                 child: ClipRRect(
@@ -567,15 +607,23 @@ class LiquidGlassDetachedButton extends StatelessWidget {
       ),
     );
 
-    if (onTap != null) {
-      button = GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: button,
-      );
-    }
-
-    return button;
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedBuilder(
+        animation: _press,
+        builder: (context, child) => Transform.scale(
+          scale: lerpDouble(1.0, 0.88, _press.value)!,
+          child: Opacity(
+            opacity: lerpDouble(1.0, 0.78, _press.value)!,
+            child: child,
+          ),
+        ),
+        child: glassButton,
+      ),
+    );
   }
 }
 
