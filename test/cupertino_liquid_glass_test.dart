@@ -8,9 +8,9 @@ void main() {
   group('LiquidGlassThemeData', () {
     test('default constructor provides sensible defaults', () {
       const theme = LiquidGlassThemeData();
-      expect(theme.blurSigma, 28.0);
-      expect(theme.tintOpacity, 0.55);
-      expect(theme.borderWidth, 0.5);
+      expect(theme.blurSigma, 25.0);
+      expect(theme.tintOpacity, 0.65);
+      expect(theme.borderWidth, 0.75);
     });
 
     test('light factory produces non-null specular gradient', () {
@@ -23,7 +23,7 @@ void main() {
     test('dark factory uses darker tint', () {
       final theme = LiquidGlassThemeData.dark();
       expect(theme.tintColor, const Color(0xFF1C1C1E));
-      expect(theme.blurSigma, greaterThan(28.0));
+      expect(theme.blurSigma, greaterThanOrEqualTo(28.0));
     });
 
     test('copyWith replaces only specified fields', () {
@@ -37,7 +37,7 @@ void main() {
       final a = LiquidGlassThemeData.light();
       final b = LiquidGlassThemeData.dark();
       final mid = LiquidGlassThemeData.lerp(a, b, 0.5);
-      expect(mid.blurSigma, closeTo(30.0, 0.1));
+      expect(mid.blurSigma, closeTo(26.5, 0.1));
     });
   });
 

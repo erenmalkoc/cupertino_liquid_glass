@@ -216,8 +216,7 @@ class _GlassBackgroundPainter extends CustomPainter {
     );
 
     // 3. Specular gradient — the "liquid" sheen.
-    if (theme.specularGradient != null) {
-      final src = theme.specularGradient! as LinearGradient;
+    if (theme.specularGradient case final LinearGradient src) {
       canvas.drawRRect(
         rrect,
         Paint()
