@@ -11,12 +11,16 @@
 </p>
 
 <p align="center">
-  <b>Apple's iOS Liquid Glass blur & translucency design language — in Flutter.</b>
+  <b>Apple's iOS Liquid Glass aesthetic — implemented entirely in Flutter.</b>
 </p>
 
 ---
 
-A Flutter widget.
+A Flutter package that approximates the visual appearance of Apple's iOS Liquid Glass design using `BackdropFilter`, multi-layer `CustomPainter`, and spring physics. No UIKit bridge, no platform channel, no native code.
+
+The effect covers backdrop blur, specular highlights, directional edge lighting, inner shadows, vibrancy boost, and noise grain — all resolving automatically from `CupertinoTheme` brightness. The included tab bar uses `SpringSimulation` for elastic, physics-driven transitions.
+
+**This package replicates appearance, not native rendering.** If your project requires exact parity with iOS 26's native `glassEffect` modifier or `UIBlurEffect`, a native-bridge approach is necessary. For Flutter apps that want the Liquid Glass aesthetic through a straightforward Dart API, this package is production-ready.
 
 ## Features
 
