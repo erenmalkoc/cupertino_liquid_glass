@@ -113,6 +113,15 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
   /// damping fraction for a subtle overshoot.
   final SpringDescription? springDescription;
 
+  /// An optional floating circular glass button rendered to the right of the
+  /// main bar, visually detached from it.
+  ///
+  /// Rubber banding applies only to the main tab strip; the detached button
+  /// stays fixed during drag gestures.
+  ///
+  /// Typically a [LiquidGlassDetachedButton].
+  final Widget? detachedButton;
+
   /// Creates a [CupertinoLiquidGlassBottomBar].
   const CupertinoLiquidGlassBottomBar({
     super.key,
@@ -126,6 +135,7 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.activeColor,
     this.inactiveColor,
     this.springDescription,
+    this.detachedButton,
   });
 
   @override
@@ -295,116 +305,127 @@ class _CupertinoLiquidGlassBottomBarState
             ? CupertinoColors.systemGrey
             : CupertinoColors.systemGrey2);
 
-    Widget bar = Padding(
+    // Main glass bar (without outer padding so rubber banding only affects it).
+    Widget mainBar = CupertinoLiquidGlass(
+      theme: widget.theme,
+      borderRadius:
+          widget.borderRadius ?? const BorderRadius.all(Radius.circular(26.0)),
+      padding: EdgeInsets.zero,
+      child: SizedBox(
+        height: _kTabBarHeight,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final contentWidth = constraints.maxWidth;
+
+            return GestureDetector(
+              onTapUp: (d) => _onTapUp(d, contentWidth),
+              onHorizontalDragStart: _onDragStart,
+              onHorizontalDragUpdate: (d) => _onDragUpdate(d, contentWidth),
+              onHorizontalDragEnd: (d) => _onDragEnd(d, contentWidth),
+              behavior: HitTestBehavior.opaque,
+              child: CustomPaint(
+                painter: _SelectorPainter(
+                  position: _position,
+                  velocity: _velocity,
+                  tabCount: widget.items.length,
+                  activeColor: resolvedActive,
+                  selectorRadius: 16.0,
+                  isDark: isDark,
+                ),
+                child: Row(
+                  children: List.generate(widget.items.length, (i) {
+                    final item = widget.items[i];
+
+                    final proximity =
+                        (1.0 - (_position - i).abs()).clamp(0.0, 1.0);
+                    final color = Color.lerp(
+                      resolvedInactive,
+                      resolvedActive,
+                      proximity,
+                    )!;
+                    final iconData = proximity > 0.5
+                        ? (item.activeIcon ?? item.icon)
+                        : item.icon;
+                    final fontWeight = FontWeight.lerp(
+                      FontWeight.w400,
+                      FontWeight.w600,
+                      proximity,
+                    )!;
+
+                    // Dock-style magnification: icons scale up as
+                    // the selector approaches.
+                    final iconScale = 1.0 + proximity * 0.18;
+
+                    return Expanded(
+                      child: SizedBox(
+                        height: _kMinHitTarget,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Transform.scale(
+                              scale: iconScale,
+                              child: _GlassIcon(
+                                icon: iconData,
+                                color: color,
+                                size: _kIconSize,
+                                glassIntensity: proximity,
+                                activeColor: resolvedActive,
+                                isDark: isDark,
+                              ),
+                            ),
+                            const SizedBox(height: 1.0),
+                            Text(
+                              item.label,
+                              style: TextStyle(
+                                fontSize: _kLabelFontSize,
+                                fontWeight: fontWeight,
+                                color: color,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    // Rubber banding applies only to the main tab strip.
+    if (_elasticScale != 1.0) {
+      mainBar = Transform.scale(
+        scale: _elasticScale,
+        alignment: Alignment.bottomCenter,
+        child: mainBar,
+      );
+    }
+
+    final content = widget.detachedButton != null
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(child: mainBar),
+              const SizedBox(width: 8.0),
+              widget.detachedButton!,
+            ],
+          )
+        : mainBar;
+
+    return Padding(
       padding: EdgeInsets.only(
         bottom: bottomPadding,
         left: widget.horizontalMargin,
         right: widget.horizontalMargin,
       ),
-      child: CupertinoLiquidGlass(
-        theme: widget.theme,
-        borderRadius:
-            widget.borderRadius ?? const BorderRadius.all(Radius.circular(26.0)),
-        padding: EdgeInsets.zero,
-        child: SizedBox(
-          height: _kTabBarHeight,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final contentWidth = constraints.maxWidth;
-
-              return GestureDetector(
-                onTapUp: (d) => _onTapUp(d, contentWidth),
-                onHorizontalDragStart: _onDragStart,
-                onHorizontalDragUpdate: (d) =>
-                    _onDragUpdate(d, contentWidth),
-                onHorizontalDragEnd: (d) => _onDragEnd(d, contentWidth),
-                behavior: HitTestBehavior.opaque,
-                child: CustomPaint(
-                  painter: _SelectorPainter(
-                    position: _position,
-                    velocity: _velocity,
-                    tabCount: widget.items.length,
-                    activeColor: resolvedActive,
-                    selectorRadius: 16.0,
-                    isDark: isDark,
-                  ),
-                  child: Row(
-                    children: List.generate(widget.items.length, (i) {
-                      final item = widget.items[i];
-
-                      final proximity =
-                          (1.0 - (_position - i).abs()).clamp(0.0, 1.0);
-                      final color = Color.lerp(
-                        resolvedInactive,
-                        resolvedActive,
-                        proximity,
-                      )!;
-                      final iconData = proximity > 0.5
-                          ? (item.activeIcon ?? item.icon)
-                          : item.icon;
-                      final fontWeight = FontWeight.lerp(
-                        FontWeight.w400,
-                        FontWeight.w600,
-                        proximity,
-                      )!;
-
-                      // Dock-style magnification: icons scale up as
-                      // the selector approaches.
-                      final iconScale = 1.0 + proximity * 0.18;
-
-                      return Expanded(
-                        child: SizedBox(
-                          height: _kMinHitTarget,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Transform.scale(
-                                scale: iconScale,
-                                child: _GlassIcon(
-                                  icon: iconData,
-                                  color: color,
-                                  size: _kIconSize,
-                                  glassIntensity: proximity,
-                                  activeColor: resolvedActive,
-                                  isDark: isDark,
-                                ),
-                              ),
-                              const SizedBox(height: 1.0),
-                              Text(
-                                item.label,
-                                style: TextStyle(
-                                  fontSize: _kLabelFontSize,
-                                  fontWeight: fontWeight,
-                                  color: color,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
+      child: content,
     );
-
-    // Apply rubber banding elastic scale during drag.
-    if (_elasticScale != 1.0) {
-      bar = Transform.scale(
-        scale: _elasticScale,
-        alignment: Alignment.bottomCenter,
-        child: bar,
-      );
-    }
-
-    return bar;
   }
 }
 

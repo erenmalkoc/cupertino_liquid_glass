@@ -146,6 +146,7 @@ class CupertinoLiquidGlass extends StatelessWidget {
             filter: ImageFilter.blur(
               sigmaX: resolved.blurSigma,
               sigmaY: resolved.blurSigma,
+              tileMode: TileMode.decal,
             ),
             child: _GlassSurface(
               theme: resolved,
@@ -174,9 +175,10 @@ class _GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     return CustomPaint(
       painter: _GlassBackgroundPainter(theme: theme),
-      foregroundPainter: _GlassForegroundPainter(theme: theme),
+      foregroundPainter: _GlassForegroundPainter(theme: theme, devicePixelRatio: dpr),
       child: Padding(
         padding: padding ?? EdgeInsets.zero,
         child: child,
@@ -270,8 +272,12 @@ class _GlassBackgroundPainter extends CustomPainter {
 /// the child content.
 class _GlassForegroundPainter extends CustomPainter {
   final LiquidGlassThemeData theme;
+  final double devicePixelRatio;
 
-  const _GlassForegroundPainter({required this.theme});
+  const _GlassForegroundPainter({
+    required this.theme,
+    required this.devicePixelRatio,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -335,13 +341,15 @@ class _GlassForegroundPainter extends CustomPainter {
       }
     }
 
+    final grainSize = 1.0 / devicePixelRatio;
+
     if (lightPoints.isNotEmpty) {
       canvas.drawPoints(
         PointMode.points,
         lightPoints,
         Paint()
           ..color = Color.fromRGBO(255, 255, 255, theme.noiseOpacity)
-          ..strokeWidth = 1.0
+          ..strokeWidth = grainSize
           ..strokeCap = StrokeCap.round,
       );
     }
@@ -352,7 +360,7 @@ class _GlassForegroundPainter extends CustomPainter {
         darkPoints,
         Paint()
           ..color = Color.fromRGBO(0, 0, 0, theme.noiseOpacity)
-          ..strokeWidth = 1.0
+          ..strokeWidth = grainSize
           ..strokeCap = StrokeCap.round,
       );
     }
@@ -362,7 +370,8 @@ class _GlassForegroundPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GlassForegroundPainter oldDelegate) =>
-      !identical(theme, oldDelegate.theme);
+      !identical(theme, oldDelegate.theme) ||
+      devicePixelRatio != oldDelegate.devicePixelRatio;
 }
 
 /// A widget that casts a soft colored glow (bloom effect) behind its child.
@@ -460,4 +469,148 @@ class _BloomPainter extends CustomPainter {
       color != oldDelegate.color ||
       spread != oldDelegate.spread ||
       intensity != oldDelegate.intensity;
+}
+
+/// A circular floating glass button, visually detached from a bar.
+///
+/// Mirrors the "detached sidebar button" pattern seen in iOS 26 apps such as
+/// Apple News, where a prominent action is separated from the main tab strip
+/// and given a more transparent, prismatic glass treatment.
+///
+/// Pass this widget to the [detachedButton] parameter of
+/// [CupertinoLiquidGlassBottomBar] or [CupertinoLiquidGlassNavBar].
+///
+/// ## Example
+///
+/// ```dart
+/// CupertinoLiquidGlassBottomBar(
+///   items: [...],
+///   currentIndex: _index,
+///   onTap: (i) => setState(() => _index = i),
+///   detachedButton: LiquidGlassDetachedButton(
+///     onTap: () {},
+///     child: Icon(CupertinoIcons.search, color: CupertinoColors.activeBlue),
+///   ),
+/// )
+/// ```
+class LiquidGlassDetachedButton extends StatelessWidget {
+  /// The icon or widget displayed inside the button.
+  final Widget child;
+
+  /// Called when the button is tapped.
+  final VoidCallback? onTap;
+
+  /// Diameter of the circular button. Defaults to 56 pt (matches bottom bar).
+  final double size;
+
+  /// When true, a subtle sweep gradient simulating prismatic light refraction
+  /// is composited over the glass surface — matching the iridescent quality
+  /// of iOS 26 detached buttons when placed over colorful content.
+  final bool iridescent;
+
+  /// Optional explicit glass theme. When null, a more transparent variant of
+  /// the brightness-derived preset is used to let backdrop colors bleed through.
+  final LiquidGlassThemeData? theme;
+
+  /// Creates a [LiquidGlassDetachedButton].
+  const LiquidGlassDetachedButton({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.size = 56.0,
+    this.iridescent = true,
+    this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness =
+        CupertinoTheme.of(context).brightness ?? Brightness.light;
+    final isDark = brightness == Brightness.dark;
+    final borderRadius = BorderRadius.circular(size / 2);
+
+    final resolvedTheme = theme ??
+        (isDark
+            ? LiquidGlassThemeData.dark().copyWith(
+                tintOpacity: 0.28,
+                blurSigma: 20.0,
+              )
+            : LiquidGlassThemeData.light().copyWith(
+                tintOpacity: 0.28,
+                blurSigma: 20.0,
+              ));
+
+    Widget button = SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        children: [
+          CupertinoLiquidGlass(
+            theme: resolvedTheme,
+            borderRadius: borderRadius,
+            width: size,
+            height: size,
+            child: Center(child: child),
+          ),
+          if (iridescent)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ClipRRect(
+                  borderRadius: borderRadius,
+                  child: CustomPaint(
+                    painter: _IridescentPainter(isDark: isDark),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (onTap != null) {
+      button = GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: button,
+      );
+    }
+
+    return button;
+  }
+}
+
+/// Paints a subtle sweep gradient that simulates prismatic light refraction —
+/// the rainbow-sheen quality visible on iOS 26 detached buttons placed over
+/// colorful content.
+class _IridescentPainter extends CustomPainter {
+  final bool isDark;
+
+  const _IridescentPainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final opacity = isDark ? 0.10 : 0.12;
+
+    final gradient = SweepGradient(
+      center: Alignment.center,
+      colors: [
+        Color.fromRGBO(255, 0, 128, opacity),
+        Color.fromRGBO(255, 120, 0, opacity * 0.8),
+        Color.fromRGBO(80, 220, 120, opacity),
+        Color.fromRGBO(0, 160, 255, opacity),
+        Color.fromRGBO(140, 0, 255, opacity),
+        Color.fromRGBO(255, 0, 128, opacity),
+      ],
+    );
+
+    canvas.drawOval(
+      rect,
+      Paint()..shader = gradient.createShader(rect),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_IridescentPainter oldDelegate) =>
+      isDark != oldDelegate.isDark;
 }

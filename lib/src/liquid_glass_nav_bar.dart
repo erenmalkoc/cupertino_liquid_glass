@@ -10,6 +10,10 @@ import 'liquid_glass_theme.dart';
 /// the content scrolling beneath it — just like the native iOS navigation bar
 /// in apps such as Safari and Messages.
 ///
+/// An optional [detachedButton] can be supplied to render a floating circular
+/// glass button separated from the main bar — matching the detached sidebar
+/// button pattern seen in iOS 26 apps such as Apple News.
+///
 /// ## Example
 ///
 /// ```dart
@@ -17,8 +21,12 @@ import 'liquid_glass_theme.dart';
 ///   title: Text('Inbox'),
 ///   leading: CupertinoButton(
 ///     padding: EdgeInsets.zero,
-///     onPressed: () {},
+///     onPressed: () => Navigator.pop(context),
 ///     child: Icon(CupertinoIcons.back),
+///   ),
+///   detachedButton: LiquidGlassDetachedButton(
+///     onTap: () {},
+///     child: Icon(CupertinoIcons.sidebar_left),
 ///   ),
 /// )
 /// ```
@@ -46,6 +54,12 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
   /// Whether to include the top safe-area padding (status bar inset).
   final bool useSafeArea;
 
+  /// An optional floating circular glass button rendered to the right of the
+  /// main bar, visually detached from it.
+  ///
+  /// Typically a [LiquidGlassDetachedButton].
+  final Widget? detachedButton;
+
   /// Creates a [CupertinoLiquidGlassNavBar].
   const CupertinoLiquidGlassNavBar({
     super.key,
@@ -56,6 +70,7 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
     this.borderRadius,
     this.horizontalMargin = 8.0,
     this.useSafeArea = true,
+    this.detachedButton,
   });
 
   @override
@@ -63,33 +78,44 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
     final topPadding =
         useSafeArea ? MediaQuery.of(context).padding.top : 0.0;
 
+    final mainBar = CupertinoLiquidGlass(
+      theme: theme,
+      borderRadius:
+          borderRadius ?? const BorderRadius.all(Radius.circular(22.0)),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Row(
+        children: [
+          ?leading,
+          if (leading != null) const SizedBox(width: 8.0),
+          Expanded(
+            child: DefaultTextStyle.merge(
+              style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
+              textAlign: TextAlign.center,
+              child: title ?? const SizedBox.shrink(),
+            ),
+          ),
+          if (trailing != null) const SizedBox(width: 8.0),
+          ?trailing,
+        ],
+      ),
+    );
+
     return Padding(
       padding: EdgeInsets.only(
         top: topPadding + 4.0,
         left: horizontalMargin,
         right: horizontalMargin,
       ),
-      child: CupertinoLiquidGlass(
-        theme: theme,
-        borderRadius:
-            borderRadius ?? const BorderRadius.all(Radius.circular(22.0)),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        child: Row(
-          children: [
-            ?leading,
-            if (leading != null) const SizedBox(width: 8.0),
-            Expanded(
-              child: DefaultTextStyle.merge(
-                style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
-                textAlign: TextAlign.center,
-                child: title ?? const SizedBox.shrink(),
-              ),
-            ),
-            if (trailing != null) const SizedBox(width: 8.0),
-            ?trailing,
-          ],
-        ),
-      ),
+      child: detachedButton != null
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(child: mainBar),
+                const SizedBox(width: 8.0),
+                detachedButton!,
+              ],
+            )
+          : mainBar,
     );
   }
 }
