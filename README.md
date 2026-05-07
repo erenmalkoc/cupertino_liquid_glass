@@ -36,6 +36,7 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 | **Apple HIG compliant** | Bottom bar with 56 pt height, 28 pt icons, 48 pt touch targets for comfortable interaction. |
 | **Rubber banding** | Elastic scale animation (8%) on horizontal drag — the bar expands during swipe and springs back on release. |
 | **Glass icon effect** | Dock-style magnification and glass refraction glow on icons as the selector passes over them. |
+| **Detached button** | `LiquidGlassDetachedButton` — circular floating glass action button with iridescent sweep and press animation, slottable into both bars. |
 
 ## Getting started
 
@@ -50,7 +51,7 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 
 ```yaml
 dependencies:
-  cupertino_liquid_glass: ^0.4.0
+  cupertino_liquid_glass: ^0.5.0
 ```
 
 ```bash
@@ -136,6 +137,35 @@ CupertinoLiquidGlassBottomBar(
 )
 ```
 
+### Detached action button
+
+A floating circular glass button — slot it into either bar:
+
+```dart
+CupertinoLiquidGlassBottomBar(
+  currentIndex: _selectedTab,
+  onTap: (i) => setState(() => _selectedTab = i),
+  items: const [/* ... */],
+  detachedButton: LiquidGlassDetachedButton(
+    onTap: () {},
+    child: const Icon(
+      CupertinoIcons.search,
+      color: CupertinoColors.activeBlue,
+    ),
+  ),
+)
+```
+
+Or stand-alone:
+
+```dart
+LiquidGlassDetachedButton(
+  size: 44,
+  onTap: () {},
+  child: const Icon(CupertinoIcons.plus, size: 20),
+)
+```
+
 ### Animated theme transition
 
 ```dart
@@ -196,6 +226,7 @@ A floating glass navigation bar with safe-area handling.
 | `borderRadius` | `BorderRadius?` | 22 px | Corner radius |
 | `horizontalMargin` | `double` | 8.0 | Horizontal margin from screen edges |
 | `useSafeArea` | `bool` | true | Include status bar padding |
+| `detachedButton` | `Widget?` | null | Optional detached circular button rendered to the right of the bar |
 
 ### `CupertinoLiquidGlassBottomBar`
 
@@ -213,6 +244,21 @@ A floating glass tab bar with safe-area handling.
 | `horizontalMargin` | `double` | 8.0 | Horizontal margin from screen edges |
 | `useSafeArea` | `bool` | true | Include home indicator padding |
 | `springDescription` | `SpringDescription?` | Apple-like | Custom spring physics for selector animation |
+| `detachedButton` | `Widget?` | null | Optional detached circular button rendered to the right of the bar (rubber banding does not apply to it) |
+
+### `LiquidGlassDetachedButton`
+
+A circular floating glass button matching the iOS 26 detached-action pattern (Apple News-style sidebar button).
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `child` | `Widget` | **required** | Icon or content rendered inside the button |
+| `onTap` | `VoidCallback?` | null | Tap callback |
+| `size` | `double` | 56.0 | Diameter of the circular button |
+| `iridescent` | `bool` | true | When true, overlays a sweep gradient simulating prismatic light refraction |
+| `theme` | `LiquidGlassThemeData?` | auto | Optional explicit theme (defaults to a more transparent variant of the brightness preset) |
+
+The button has a built-in press animation: scales down to 88% with a 78% opacity dip on tap-down, then springs back via an elastic curve on release.
 
 ## Performance tips
 

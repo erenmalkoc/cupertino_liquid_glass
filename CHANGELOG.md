@@ -1,3 +1,11 @@
+## 0.5.0
+
+* **`LiquidGlassDetachedButton`**: New circular floating glass button widget for the iOS 26 detached-action pattern (Apple News-style). Includes prismatic iridescent sweep, custom theme override, and a tap press animation (scale + opacity with elastic release).
+* **Detached button slot on bars**: `CupertinoLiquidGlassNavBar` and `CupertinoLiquidGlassBottomBar` now accept a `detachedButton` widget rendered to the right of the main bar. Rubber banding on the bottom bar applies only to the main strip — the detached button stays fixed during drag.
+* **Nav bar height alignment**: Standardised on a 44 pt content height (`_kNavBarContentHeight`) so the nav bar and detached button sit on the same baseline.
+* **Example app**: Restructured into a multi-page demo (Gallery, Effects, Theme) with a colorful animated background that better showcases backdrop blur. Both bars now demonstrate the detached button slot.
+* **Docs**: Added `LiquidGlassDetachedButton` API reference and `detachedButton` parameter docs to README.
+
 ## 0.4.1
 
 * **Docs**: Updated README showcase with animated GIF, removed unused image assets.

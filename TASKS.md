@@ -1,6 +1,6 @@
 # Tasks
 
-## Completed (v0.1.0 — v0.4.0)
+## Completed (v0.1.0 — v0.5.0)
 
 - [x] Core `CupertinoLiquidGlass` widget with BackdropFilter blur
 - [x] `LiquidGlassThemeData` with light/dark presets
@@ -27,6 +27,10 @@
 - [x] Theme values aligned with UIBlurEffect.systemChromeMaterial
 - [x] Light/dark theme toggle in example app
 - [x] pub.dev description length fix (160/160 points)
+- [x] `LiquidGlassDetachedButton` — circular floating glass action button (iOS 26 detached pattern) with iridescent sweep and elastic press animation
+- [x] `detachedButton` slot on `CupertinoLiquidGlassNavBar` and `CupertinoLiquidGlassBottomBar`
+- [x] Nav bar content height standardised to 44 pt (aligned with detached button baseline)
+- [x] Multi-page example app (Gallery / Effects / Theme) with colorful animated background
 
 ## Planned
 

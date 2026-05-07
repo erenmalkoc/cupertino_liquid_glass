@@ -27,7 +27,7 @@ test/
 
 ### 1. CupertinoLiquidGlass (Core Widget)
 
-**File:** `lib/src/cupertino_liquid_glass_widget.dart` (~465 lines)
+**File:** `lib/src/cupertino_liquid_glass_widget.dart` (~660 lines)
 
 Wraps any child widget in an Apple-style liquid glass surface. Stateless; all rendering is handled by internal painters.
 
@@ -50,6 +50,8 @@ CupertinoLiquidGlass (StatelessWidget)
 - `_GlassBackgroundPainter` — Paints vibrancy overlay, tint layer, specular gradient, inner shadow
 - `_GlassForegroundPainter` — Paints noise grain texture and edge-lit gradient border
 - `LiquidGlassBloom` — Renders soft colored radial glow behind content via `_BloomPainter`
+- `LiquidGlassDetachedButton` — Public stateful widget; circular floating glass action button. Stacks `CupertinoLiquidGlass` + an optional `_IridescentPainter` sweep gradient and drives a press animation via `AnimationController` (scale to 88%, opacity to 78%, elastic release).
+- `_IridescentPainter` — Sweep-gradient overlay simulating prismatic light refraction.
 
 ### 2. LiquidGlassThemeData (Theme System)
 
@@ -73,15 +75,19 @@ Immutable configuration object controlling every visual parameter of the glass e
 
 ### 3. CupertinoLiquidGlassNavBar
 
-**File:** `lib/src/liquid_glass_nav_bar.dart` (~95 lines)
+**File:** `lib/src/liquid_glass_nav_bar.dart` (~128 lines)
 
-Pre-built floating navigation bar. Stateless wrapper around `CupertinoLiquidGlass`.
+Pre-built floating navigation bar. Stateless wrapper around `CupertinoLiquidGlass`. Content height is fixed at 44 pt to align with the default `LiquidGlassDetachedButton` baseline.
 
 ```
 CupertinoLiquidGlassNavBar
 └── Padding (SafeArea top + horizontal margins)
-    └── CupertinoLiquidGlass
-        └── Row: [leading] [Expanded title] [trailing]
+    └── (detachedButton == null)
+        ? CupertinoLiquidGlass
+        │   └── Row: [leading] [Expanded title] [trailing]
+        : Row
+            ├── Expanded(CupertinoLiquidGlass: leading | title | trailing)
+            └── detachedButton  (typically LiquidGlassDetachedButton)
 ```
 
 ### 4. CupertinoLiquidGlassBottomBar
@@ -93,11 +99,18 @@ Pre-built floating tab bar with spring physics, velocity-based stretch, and drag
 ```
 CupertinoLiquidGlassBottomBar (StatefulWidget)
 └── Padding (SafeArea bottom + horizontal margins)
-    └── CupertinoLiquidGlass
-        └── LayoutBuilder
-            └── GestureDetector (tap + horizontal drag)
-                └── CustomPaint (_SelectorPainter)
-                    └── Row: [Expanded Column(Icon, Label)] x N
+    └── (detachedButton == null)
+        ? mainBar
+        : Row(crossAxis: end)
+            ├── Expanded(mainBar)
+            └── detachedButton  (rubber banding does NOT apply)
+
+where mainBar = (optional) Transform.scale(_elasticScale)
+                  └── CupertinoLiquidGlass
+                      └── LayoutBuilder
+                          └── GestureDetector (tap + horizontal drag)
+                              └── CustomPaint (_SelectorPainter)
+                                  └── Row: [Expanded Column(_GlassIcon, Label)] x N
 ```
 
 **State Management:**
@@ -193,3 +206,4 @@ Exported via `lib/cupertino_liquid_glass.dart`:
 | `CupertinoLiquidGlassBottomBar` | Widget | Bottom tab bar preset |
 | `LiquidGlassBottomBarItem` | Data | Tab item definition |
 | `LiquidGlassBloom` | Widget | Glow effect |
+| `LiquidGlassDetachedButton` | Widget | Detached circular glass action button (slottable into either bar) |

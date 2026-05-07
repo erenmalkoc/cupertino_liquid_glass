@@ -2,7 +2,7 @@ name: cupertino_liquid_glass
 description: >
   Flutter widgets replicating Apple's iOS Liquid Glass visual style. BackdropFilter blur,
   specular highlights, spring tab bar. A visual approximation — not a native UIKit bridge.
-version: 0.4.1
+version: 0.5.0
 homepage: https://github.com/erenmalkoc/cupertino_liquid_glass
 repository: https://github.com/erenmalkoc/cupertino_liquid_glass
 issue_tracker: https://github.com/erenmalkoc/cupertino_liquid_glass/issues
