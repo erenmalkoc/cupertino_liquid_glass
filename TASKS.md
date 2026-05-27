@@ -1,5 +1,18 @@
 # Tasks
 
+## Completed (v0.6.0)
+
+- [x] Smooth-drag overhaul: stop spring at drag start, move position/velocity into `ValueNotifier`s, painter subscribes via `repaint:`, no `setState` per frame
+- [x] 90 ms sliding-window velocity smoothing with sub-pixel jitter filter
+- [x] Forward gesture momentum into spring as `initialVelocity` on drag end
+- [x] `RepaintBoundary` around selector subtree to isolate glass surface rasterization
+- [x] `Listener` watchdog around `GestureDetector` to recover from swallowed drag-end callbacks (arena rejection, OS gesture, app backgrounding) so rubber-band returns to 1.0
+- [x] `enableGlass` parameter on bottom bar, nav bar and detached button (forwards to new `enabled` flag on `CupertinoLiquidGlass`); solid `systemGrey6` fallback with optional `disabledColor` override
+- [x] Android safe-area fix: use `MediaQuery.viewPadding.bottom` and add platform-aware 6 dp clearance for the gesture handle; expose `bottomSpacing` parameter
+- [x] Tighten dimensions to Apple HIG: bar height 56 → 52, icon 28 → 25, label 11 → 10, min hit target 48 → 44, detached button 56 → 52
+- [x] Tone down selected-tab glare: icon outer halo + inner specular alphas + selector pill bloom
+- [x] Glass Effect toggle in example app Theme tab (combined Dark Mode + Glass Effect card with native-style separator)
+
 ## Completed (v0.1.0 — v0.5.0)
 
 - [x] Core `CupertinoLiquidGlass` widget with BackdropFilter blur

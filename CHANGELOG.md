@@ -1,3 +1,14 @@
+## 0.6.0
+
+* **Smooth drag (perf)**: Bottom-bar drag is no longer fighting a running spring simulation. The controller now stops at drag start, position and velocity moved into `ValueNotifier`s and the selector painter subscribes via `repaint:` — no `setState` per frame. Glass surface + selector painter are isolated by a `RepaintBoundary` so backdrop blur and noise grain are not re-rasterized while dragging.
+* **Velocity smoothing**: 90 ms sliding-window with a sub-pixel jitter filter feeds the selector's stretch effect, replacing the per-frame `delta * 60` estimate. The fling velocity at drag end is forwarded into the spring as `initialVelocity`, so the snap preserves gesture momentum.
+* **Stuck rubber-band fix**: `GestureDetector` is wrapped in a `Listener` watchdog. If a parent recognizer reclaims the gesture arena mid-drag, an OS gesture interrupts the pointer or the app backgrounds, `onHorizontalDragEnd` can be swallowed and the bar previously stayed at 1.08× scale. The watchdog detects orphaned drags via raw `pointerUp` / `pointerCancel` and forces a cancel so the elastic spring returns to 1.0.
+* **Glass effect toggle**: New `enableGlass` parameter on `CupertinoLiquidGlassBottomBar`, `CupertinoLiquidGlassNavBar` and `LiquidGlassDetachedButton` (forwarded to a new `enabled` flag on `CupertinoLiquidGlass`). When false, the `BackdropFilter` and decorative layers (vibrancy, specular, inner shadow, noise grain, edge light, iridescent sweep) are skipped and the surface falls back to a solid Cupertino `systemGrey6` background — useful as a low-power fallback or design opt-out. Optional `disabledColor` overrides the solid color.
+* **Android safe-area fix**: Bottom bar now uses `MediaQuery.viewPadding.bottom` (immune to parent SafeArea/Scaffold consumers) and adds a 6 dp default clearance on Android, where the gesture-handle area (~16 dp) is much thinner than iOS's home-indicator zone. New `bottomSpacing` parameter exposes the override.
+* **Tighter dimensions (HIG)**: Bar height 56 → 52, icon 28 → 25, label 11 → 10, min hit target 48 → 44 (Apple HIG minimum). Default `LiquidGlassDetachedButton.size` 56 → 52 so it stays symmetrical when slotted into the bottom bar.
+* **Toned-down selected-tab glow**: Icon outer halo alpha 0.22 → 0.16 with a tighter blur radius; inner specular highlight alpha 0.18 → 0.12 (the main source of glare); selector pill bloom alpha 0.18 → 0.13 and blur 10 → 8.
+* **Example app**: New _Glass Effect_ toggle in the Theme tab that flips `enableGlass` on the nav bar, bottom bar and detached buttons in unison. Refactored toggle row into a reusable `_ToggleRow`.
+
 ## 0.5.0
 
 * **`LiquidGlassDetachedButton`**: New circular floating glass button widget for the iOS 26 detached-action pattern (Apple News-style). Includes prismatic iridescent sweep, custom theme override, and a tap press animation (scale + opacity with elastic release).

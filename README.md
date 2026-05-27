@@ -33,10 +33,12 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 | **Fully customizable** | Override `blurSigma`, `tintOpacity`, `borderRadius`, `borderColor`, `borderWidth`, and `specularGradient` per-widget. |
 | **Theme interpolation** | `LiquidGlassThemeData.lerp()` enables smooth animated transitions between any two theme configurations. |
 | **Pre-built bars** | `CupertinoLiquidGlassNavBar` and `CupertinoLiquidGlassBottomBar` — drop-in replacements with safe-area handling. |
-| **Apple HIG compliant** | Bottom bar with 56 pt height, 28 pt icons, 48 pt touch targets for comfortable interaction. |
-| **Rubber banding** | Elastic scale animation (8%) on horizontal drag — the bar expands during swipe and springs back on release. |
+| **Apple HIG compliant** | Bottom bar with 52 pt height, 25 pt icons, 44 pt touch targets for comfortable interaction. |
+| **Rubber banding** | Elastic scale animation (8%) on horizontal drag — the bar expands during swipe and springs back on release. A `Listener` watchdog guarantees the bar resets even when the gesture arena swallows the drag-end callback. |
 | **Glass icon effect** | Dock-style magnification and glass refraction glow on icons as the selector passes over them. |
 | **Detached button** | `LiquidGlassDetachedButton` — circular floating glass action button with iridescent sweep and press animation, slottable into both bars. |
+| **Glass toggle** | `enableGlass: false` falls back to a solid Cupertino `systemGrey6` surface — useful as a low-power fallback or pure-flat design opt-out. |
+| **Android safe-area** | Uses `viewPadding` so the bar is not crowded by the gesture handle even when a parent has already consumed `MediaQuery.padding`. |
 
 ## Getting started
 
@@ -51,7 +53,7 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 
 ```yaml
 dependencies:
-  cupertino_liquid_glass: ^0.5.0
+  cupertino_liquid_glass: ^0.6.0
 ```
 
 ```bash
@@ -203,6 +205,8 @@ The core widget. Wraps any child in a frosted-glass surface with backdrop blur.
 | `height` | `double?` | null | Fixed height |
 | `glowColor` | `Color?` | null | Soft bloom glow around surface |
 | `glowRadius` | `double` | 24.0 | Blur radius of glow |
+| `enabled` | `bool` | true | When false, skips backdrop blur + decorative layers and renders a solid surface |
+| `disabledColor` | `Color?` | systemGrey6 | Solid background used when `enabled` is false |
 
 ### `LiquidGlassThemeData`
 
@@ -226,6 +230,7 @@ A floating glass navigation bar with safe-area handling.
 | `borderRadius` | `BorderRadius?` | 22 px | Corner radius |
 | `horizontalMargin` | `double` | 8.0 | Horizontal margin from screen edges |
 | `useSafeArea` | `bool` | true | Include status bar padding |
+| `enableGlass` | `bool` | true | When false, the bar falls back to a solid Cupertino surface |
 | `detachedButton` | `Widget?` | null | Optional detached circular button rendered to the right of the bar |
 
 ### `CupertinoLiquidGlassBottomBar`
@@ -243,6 +248,8 @@ A floating glass tab bar with safe-area handling.
 | `borderRadius` | `BorderRadius?` | 26 px | Corner radius |
 | `horizontalMargin` | `double` | 8.0 | Horizontal margin from screen edges |
 | `useSafeArea` | `bool` | true | Include home indicator padding |
+| `enableGlass` | `bool` | true | When false, the bar falls back to a solid Cupertino surface |
+| `bottomSpacing` | `double?` | auto | Extra clearance below the bar. `null` adds 6 dp on Android (gesture handle area), 0 elsewhere |
 | `springDescription` | `SpringDescription?` | Apple-like | Custom spring physics for selector animation |
 | `detachedButton` | `Widget?` | null | Optional detached circular button rendered to the right of the bar (rubber banding does not apply to it) |
 
@@ -254,9 +261,10 @@ A circular floating glass button matching the iOS 26 detached-action pattern (Ap
 |---|---|---|---|
 | `child` | `Widget` | **required** | Icon or content rendered inside the button |
 | `onTap` | `VoidCallback?` | null | Tap callback |
-| `size` | `double` | 56.0 | Diameter of the circular button |
+| `size` | `double` | 52.0 | Diameter of the circular button (matches bottom-bar height) |
 | `iridescent` | `bool` | true | When true, overlays a sweep gradient simulating prismatic light refraction |
 | `theme` | `LiquidGlassThemeData?` | auto | Optional explicit theme (defaults to a more transparent variant of the brightness preset) |
+| `enableGlass` | `bool` | true | When false, falls back to a solid Cupertino surface; the iridescent sweep is also suppressed |
 
 The button has a built-in press animation: scales down to 88% with a 78% opacity dip on tap-down, then springs back via an elastic curve on release.
 
