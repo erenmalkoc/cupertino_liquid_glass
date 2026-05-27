@@ -657,8 +657,8 @@ class _GlassIconPainter extends CustomPainter {
       center,
       radius * (1.0 + intensity * 0.3),
       Paint()
-        ..color = activeColor.withValues(alpha: intensity * 0.22)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8.0 + intensity * 4.0),
+        ..color = activeColor.withValues(alpha: intensity * 0.16)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 7.0 + intensity * 3.0),
     );
 
     // Inner glass highlight — bright specular dot.
@@ -667,7 +667,7 @@ class _GlassIconPainter extends CustomPainter {
       radius * 0.5 * intensity,
       Paint()
         ..color = const Color.fromRGBO(255, 255, 255, 1.0)
-            .withValues(alpha: intensity * 0.18)
+            .withValues(alpha: intensity * 0.12)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4.0 + intensity * 2.0),
     );
   }
@@ -726,8 +726,8 @@ class _SelectorPainter extends CustomPainter {
     canvas.drawRRect(
       rrect.inflate(3.0),
       Paint()
-        ..color = activeColor.withValues(alpha: 0.18)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0),
+        ..color = activeColor.withValues(alpha: 0.13)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0),
     );
 
     // 2. Fill — subtle translucent pill.
