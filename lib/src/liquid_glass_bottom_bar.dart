@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 
 import 'cupertino_liquid_glass_widget.dart';
@@ -35,6 +36,13 @@ const double _kIconSize = 28.0;
 
 /// Label font size for tab bars.
 const double _kLabelFontSize = 11.0;
+
+/// Sliding window (ms) used to smooth the drag velocity for the stretch effect.
+const int _kVelocityWindowMs = 90;
+
+/// Pixel-distance below which a drag delta is treated as noise and skipped
+/// for velocity sampling. Filters out trembling fingers and high-DPI jitter.
+const double _kVelocityJitterPx = 0.4;
 
 /// A pre-built bottom tab bar wrapped in a [CupertinoLiquidGlass] surface,
 /// featuring a sliding fluid indicator with spring physics.
@@ -149,17 +157,16 @@ class _CupertinoLiquidGlassBottomBarState
   late AnimationController _controller;
   late AnimationController _elasticController;
 
-  /// Current fractional index of the selector (0.0 = first tab, etc.).
-  double _position = 0.0;
+  /// Current fractional index (0.0 = first tab). Drives painter + tab styling.
+  late final ValueNotifier<double> _position;
 
-  /// Current velocity in fractional-index-per-second units.
-  double _velocity = 0.0;
+  /// Current velocity in fractional-index-per-second. Drives stretch only.
+  late final ValueNotifier<double> _velocity;
 
-  /// Whether the user is actively dragging.
   bool _isDragging = false;
 
-  /// Current elastic scale factor (1.0 = rest, >1.0 = expanded).
-  double _elasticScale = 1.0;
+  /// Sliding window of recent drag samples for velocity smoothing.
+  final List<_VelocitySample> _velocitySamples = <_VelocitySample>[];
 
   /// Apple-like spring: ~0.35s response, 0.75 damping fraction.
   static const _defaultSpring = SpringDescription(
@@ -185,18 +192,20 @@ class _CupertinoLiquidGlassBottomBarState
   @override
   void initState() {
     super.initState();
-    _position = widget.currentIndex.toDouble();
-    _controller = AnimationController.unbounded(vsync: this)
-      ..addListener(_onTick);
-    _elasticController = AnimationController.unbounded(vsync: this, value: 1.0)
-      ..addListener(_onElasticTick);
+    final initial = widget.currentIndex.toDouble();
+    _position = ValueNotifier<double>(initial);
+    _velocity = ValueNotifier<double>(0.0);
+    _controller = AnimationController.unbounded(vsync: this, value: initial)
+      ..addListener(_onSpringTick);
+    _elasticController =
+        AnimationController.unbounded(vsync: this, value: 1.0);
   }
 
   @override
   void didUpdateWidget(CupertinoLiquidGlassBottomBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentIndex != widget.currentIndex && !_isDragging) {
-      _animateTo(widget.currentIndex);
+      _animateTo(widget.currentIndex, initialVelocity: _velocity.value);
     }
   }
 
@@ -204,6 +213,8 @@ class _CupertinoLiquidGlassBottomBarState
   void dispose() {
     _controller.dispose();
     _elasticController.dispose();
+    _position.dispose();
+    _velocity.dispose();
     super.dispose();
   }
 
@@ -211,26 +222,20 @@ class _CupertinoLiquidGlassBottomBarState
   // Animation
   // ---------------------------------------------------------------------------
 
-  void _onTick() {
-    setState(() {
-      _position = _controller.value;
-      _velocity = _controller.velocity;
-    });
+  /// Mirrors the spring controller's value into the [_position] /
+  /// [_velocity] notifiers. No [setState] — listeners drive their own repaints.
+  void _onSpringTick() {
+    _position.value = _controller.value;
+    _velocity.value = _controller.velocity;
   }
 
-  void _onElasticTick() {
-    setState(() {
-      _elasticScale = _elasticController.value;
-    });
-  }
-
-  void _animateTo(int index) {
+  void _animateTo(int index, {double initialVelocity = 0.0}) {
     _controller.animateWith(
       SpringSimulation(
         _spring,
-        _position,
+        _position.value,
         index.toDouble(),
-        _velocity,
+        initialVelocity,
       ),
     );
   }
@@ -250,19 +255,60 @@ class _CupertinoLiquidGlassBottomBarState
 
   void _onDragStart(DragStartDetails details) {
     _isDragging = true;
-    // Rubber band: expand bar on drag start.
+
+    // CRITICAL: stop any in-flight spring so it doesn't fight the drag.
+    // Without this, the controller's ticks keep overwriting `_position` on
+    // every frame while the user drags, producing the "stuttering" feel.
+    _controller.stop();
+
+    _velocitySamples.clear();
+    _velocity.value = 0.0;
+
     _elasticController.animateWith(
-      SpringSimulation(_elasticSpring, _elasticScale, _expandedScale, 0.0),
+      SpringSimulation(
+        _elasticSpring,
+        _elasticController.value,
+        _expandedScale,
+        0.0,
+      ),
     );
   }
 
   void _onDragUpdate(DragUpdateDetails details, double contentWidth) {
     final tabWidth = contentWidth / widget.items.length;
-    final delta = details.delta.dx / tabWidth;
-    setState(() {
-      _position = (_position + delta).clamp(0.0, _maxIndex.toDouble());
-      _velocity = delta * 60;
-    });
+    final dx = details.delta.dx;
+    final delta = dx / tabWidth;
+
+    // Track samples for smoothed velocity. Skip sub-pixel jitter so the
+    // stretch effect doesn't shimmer.
+    final now = details.sourceTimeStamp?.inMicroseconds ??
+        DateTime.now().microsecondsSinceEpoch;
+    if (dx.abs() >= _kVelocityJitterPx) {
+      _velocitySamples.add(_VelocitySample(now, delta));
+      final cutoff = now - _kVelocityWindowMs * 1000;
+      while (_velocitySamples.isNotEmpty &&
+          _velocitySamples.first.timeUs < cutoff) {
+        _velocitySamples.removeAt(0);
+      }
+    }
+
+    _position.value =
+        (_position.value + delta).clamp(0.0, _maxIndex.toDouble());
+
+    // Smoothed velocity (fractional-index per second).
+    if (_velocitySamples.length >= 2) {
+      final spanUs =
+          _velocitySamples.last.timeUs - _velocitySamples.first.timeUs;
+      if (spanUs > 0) {
+        final totalDelta = _velocitySamples.fold<double>(
+          0.0,
+          (sum, s) => sum + s.delta,
+        );
+        _velocity.value = totalDelta * 1e6 / spanUs;
+      }
+    } else {
+      _velocity.value = 0.0;
+    }
   }
 
   void _onDragEnd(DragEndDetails details, double contentWidth) {
@@ -270,19 +316,36 @@ class _CupertinoLiquidGlassBottomBarState
     final tabWidth = contentWidth / widget.items.length;
     final flingVelocity = details.velocity.pixelsPerSecond.dx / tabWidth;
 
-    int target = _position.round();
+    int target = _position.value.round();
     if (flingVelocity.abs() > 3.0) {
-      target = flingVelocity > 0 ? _position.ceil() : _position.floor();
+      target = flingVelocity > 0 ? _position.value.ceil() : _position.value.floor();
     }
     target = target.clamp(0, _maxIndex);
 
-    _velocity = flingVelocity;
+    _velocitySamples.clear();
     widget.onTap?.call(target);
-    _animateTo(target);
 
-    // Rubber band: spring back to rest on release.
+    // Hand the gesture's momentum to the spring so motion continues smoothly.
+    _animateTo(target, initialVelocity: flingVelocity);
+
     _elasticController.animateWith(
-      SpringSimulation(_elasticSpring, _elasticScale, 1.0, 0.0),
+      SpringSimulation(
+        _elasticSpring,
+        _elasticController.value,
+        1.0,
+        0.0,
+      ),
+    );
+  }
+
+  void _onDragCancel() {
+    _isDragging = false;
+    _velocitySamples.clear();
+    // Snap back to the nearest tab if the gesture was interrupted.
+    final target = _position.value.round().clamp(0, _maxIndex);
+    _animateTo(target);
+    _elasticController.animateWith(
+      SpringSimulation(_elasticSpring, _elasticController.value, 1.0, 0.0),
     );
   }
 
@@ -322,74 +385,35 @@ class _CupertinoLiquidGlassBottomBarState
               onHorizontalDragStart: _onDragStart,
               onHorizontalDragUpdate: (d) => _onDragUpdate(d, contentWidth),
               onHorizontalDragEnd: (d) => _onDragEnd(d, contentWidth),
+              onHorizontalDragCancel: _onDragCancel,
               behavior: HitTestBehavior.opaque,
-              child: CustomPaint(
-                painter: _SelectorPainter(
-                  position: _position,
-                  velocity: _velocity,
-                  tabCount: widget.items.length,
-                  activeColor: resolvedActive,
-                  selectorRadius: 16.0,
-                  isDark: isDark,
-                ),
-                child: Row(
-                  children: List.generate(widget.items.length, (i) {
-                    final item = widget.items[i];
-
-                    final proximity =
-                        (1.0 - (_position - i).abs()).clamp(0.0, 1.0);
-                    final color = Color.lerp(
-                      resolvedInactive,
-                      resolvedActive,
-                      proximity,
-                    )!;
-                    final iconData = proximity > 0.5
-                        ? (item.activeIcon ?? item.icon)
-                        : item.icon;
-                    final fontWeight = FontWeight.lerp(
-                      FontWeight.w400,
-                      FontWeight.w600,
-                      proximity,
-                    )!;
-
-                    // Dock-style magnification: icons scale up as
-                    // the selector approaches.
-                    final iconScale = 1.0 + proximity * 0.18;
-
-                    return Expanded(
-                      child: SizedBox(
-                        height: _kMinHitTarget,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Transform.scale(
-                              scale: iconScale,
-                              child: _GlassIcon(
-                                icon: iconData,
-                                color: color,
-                                size: _kIconSize,
-                                glassIntensity: proximity,
-                                activeColor: resolvedActive,
-                                isDark: isDark,
-                              ),
-                            ),
-                            const SizedBox(height: 1.0),
-                            Text(
-                              item.label,
-                              style: TextStyle(
-                                fontSize: _kLabelFontSize,
-                                fontWeight: fontWeight,
-                                color: color,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+              // RepaintBoundary isolates the selector + tab item repaints
+              // from the glass surface (noise, blur, edge light), which is
+              // expensive to rasterize and only needs to repaint once.
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: _SelectorPainter(
+                    position: _position,
+                    velocity: _velocity,
+                    tabCount: widget.items.length,
+                    activeColor: resolvedActive,
+                    selectorRadius: 16.0,
+                    isDark: isDark,
+                  ),
+                  child: Row(
+                    children: List.generate(widget.items.length, (i) {
+                      return Expanded(
+                        child: _TabItem(
+                          item: widget.items[i],
+                          index: i,
+                          position: _position,
+                          activeColor: resolvedActive,
+                          inactiveColor: resolvedInactive,
+                          isDark: isDark,
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ),
                 ),
               ),
             );
@@ -398,14 +422,21 @@ class _CupertinoLiquidGlassBottomBarState
       ),
     );
 
-    // Rubber banding applies only to the main tab strip.
-    if (_elasticScale != 1.0) {
-      mainBar = Transform.scale(
-        scale: _elasticScale,
-        alignment: Alignment.bottomCenter,
-        child: mainBar,
-      );
-    }
+    // Rubber banding (only the main strip, not the detached button).
+    // AnimatedBuilder rebuilds only the Transform — `mainBar` stays cached.
+    mainBar = AnimatedBuilder(
+      animation: _elasticController,
+      builder: (context, child) {
+        final scale = _elasticController.value;
+        if (scale == 1.0) return child!;
+        return Transform.scale(
+          scale: scale,
+          alignment: Alignment.bottomCenter,
+          child: child,
+        );
+      },
+      child: mainBar,
+    );
 
     final content = widget.detachedButton != null
         ? Row(
@@ -425,6 +456,91 @@ class _CupertinoLiquidGlassBottomBarState
         right: widget.horizontalMargin,
       ),
       child: content,
+    );
+  }
+}
+
+/// A single drag sample used for velocity smoothing.
+class _VelocitySample {
+  /// Monotonic timestamp in microseconds.
+  final int timeUs;
+
+  /// Fractional-index delta accumulated this frame.
+  final double delta;
+
+  const _VelocitySample(this.timeUs, this.delta);
+}
+
+/// Subscribes to the position notifier and rebuilds only its own subtree —
+/// keeps the gesture detector, glass surface, and painter out of the rebuild.
+class _TabItem extends StatelessWidget {
+  final LiquidGlassBottomBarItem item;
+  final int index;
+  final ValueListenable<double> position;
+  final Color activeColor;
+  final Color inactiveColor;
+  final bool isDark;
+
+  const _TabItem({
+    required this.item,
+    required this.index,
+    required this.position,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _kMinHitTarget,
+      child: ListenableBuilder(
+        listenable: position,
+        builder: (context, _) {
+          final proximity =
+              (1.0 - (position.value - index).abs()).clamp(0.0, 1.0);
+          final color = Color.lerp(inactiveColor, activeColor, proximity)!;
+          final iconData = proximity > 0.5
+              ? (item.activeIcon ?? item.icon)
+              : item.icon;
+          final fontWeight = FontWeight.lerp(
+            FontWeight.w400,
+            FontWeight.w600,
+            proximity,
+          )!;
+          // Dock-style magnification.
+          final iconScale = 1.0 + proximity * 0.18;
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Transform.scale(
+                scale: iconScale,
+                child: _GlassIcon(
+                  icon: iconData,
+                  color: color,
+                  size: _kIconSize,
+                  glassIntensity: proximity,
+                  activeColor: activeColor,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(height: 1.0),
+              Text(
+                item.label,
+                style: TextStyle(
+                  fontSize: _kLabelFontSize,
+                  fontWeight: fontWeight,
+                  color: color,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -497,9 +613,7 @@ class _GlassIconPainter extends CustomPainter {
       center.translate(0, -radius * 0.15),
       radius * 0.5 * intensity,
       Paint()
-        ..color = (isDark
-                ? const Color.fromRGBO(255, 255, 255, 1.0)
-                : const Color.fromRGBO(255, 255, 255, 1.0))
+        ..color = const Color.fromRGBO(255, 255, 255, 1.0)
             .withValues(alpha: intensity * 0.18)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4.0 + intensity * 2.0),
     );
@@ -513,36 +627,42 @@ class _GlassIconPainter extends CustomPainter {
 }
 
 /// Paints the sliding glass selector pill behind the active tab icon.
+///
+/// Subscribes directly to the position + velocity notifiers so it repaints
+/// without rebuilding any widgets.
 class _SelectorPainter extends CustomPainter {
-  final double position;
-  final double velocity;
+  final ValueListenable<double> position;
+  final ValueListenable<double> velocity;
   final int tabCount;
   final Color activeColor;
   final double selectorRadius;
   final bool isDark;
 
-  const _SelectorPainter({
+  _SelectorPainter({
     required this.position,
     required this.velocity,
     required this.tabCount,
     required this.activeColor,
     required this.selectorRadius,
     required this.isDark,
-  });
+  }) : super(repaint: Listenable.merge([position, velocity]));
 
   @override
   void paint(Canvas canvas, Size size) {
     if (tabCount == 0) return;
 
+    final pos = position.value;
+    final vel = velocity.value;
+
     final tabWidth = size.width / tabCount;
 
     // Velocity-based stretch: faster movement -> wider pill.
-    final absVel = velocity.abs().clamp(0.0, 20.0);
+    final absVel = vel.abs().clamp(0.0, 20.0);
     final stretch = 1.0 + absVel / 55.0; // max ~1.36x
 
     final baseWidth = tabWidth * 0.82;
     final selectorWidth = baseWidth * stretch;
-    final x = position * tabWidth + (tabWidth - selectorWidth) / 2;
+    final x = pos * tabWidth + (tabWidth - selectorWidth) / 2;
 
     final rrect = RRect.fromRectAndRadius(
       Rect.fromLTWH(x, 2.0, selectorWidth, size.height - 4.0),
@@ -589,8 +709,6 @@ class _SelectorPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SelectorPainter old) =>
-      position != old.position ||
-      velocity != old.velocity ||
       tabCount != old.tabCount ||
       activeColor != old.activeColor ||
       isDark != old.isDark;
