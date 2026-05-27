@@ -109,6 +109,14 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
   /// Whether to include the bottom safe-area padding (home indicator inset).
   final bool useSafeArea;
 
+  /// Extra vertical space inserted between the bar and the system inset.
+  ///
+  /// When null (the default), the bar adds a small platform-aware clearance:
+  /// 6 dp on Android (where the gesture handle area is much thinner than
+  /// iOS's home indicator zone, causing the bar to feel cramped against the
+  /// system gesture line) and 0 elsewhere. Set this explicitly to override.
+  final double? bottomSpacing;
+
   /// The color used for the active (selected) tab icon and label.
   final Color? activeColor;
 
@@ -140,6 +148,7 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.borderRadius,
     this.horizontalMargin = 8.0,
     this.useSafeArea = true,
+    this.bottomSpacing,
     this.activeColor,
     this.inactiveColor,
     this.springDescription,
@@ -355,8 +364,22 @@ class _CupertinoLiquidGlassBottomBarState
 
   @override
   Widget build(BuildContext context) {
+    // Use viewPadding (not padding): viewPadding still reports the device's
+    // raw bottom inset even when a parent SafeArea or Scaffold has already
+    // consumed MediaQuery.padding, which is common when the bar is dropped
+    // into a Stack(Positioned(bottom: 0, ...)) overlay.
+    final systemInset = MediaQuery.viewPaddingOf(context).bottom;
+
+    // Android's gesture-handle area (~16 dp) is much thinner than iOS's
+    // home-indicator zone (~34 pt), so the bar visually sits flush against
+    // the system gesture line on Android. Add a tiny clearance there by
+    // default. Users can override via [bottomSpacing].
+    final extra = widget.bottomSpacing ??
+        (defaultTargetPlatform == TargetPlatform.android ? 6.0 : 0.0);
+
     final bottomPadding =
-        widget.useSafeArea ? MediaQuery.of(context).padding.bottom : 0.0;
+        widget.useSafeArea ? systemInset + extra : extra;
+
     final brightness =
         CupertinoTheme.of(context).brightness ?? Brightness.light;
     final isDark = brightness == Brightness.dark;
