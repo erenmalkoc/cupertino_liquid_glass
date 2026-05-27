@@ -109,6 +109,11 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
   /// Whether to include the bottom safe-area padding (home indicator inset).
   final bool useSafeArea;
 
+  /// When false, the bar falls back to a solid Cupertino system-grey surface
+  /// instead of the live backdrop-blur glass effect. Useful as a low-power
+  /// fallback or design opt-out. Defaults to true.
+  final bool enableGlass;
+
   /// Extra vertical space inserted between the bar and the system inset.
   ///
   /// When null (the default), the bar adds a small platform-aware clearance:
@@ -148,6 +153,7 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.borderRadius,
     this.horizontalMargin = 8.0,
     this.useSafeArea = true,
+    this.enableGlass = true,
     this.bottomSpacing,
     this.activeColor,
     this.inactiveColor,
@@ -394,6 +400,7 @@ class _CupertinoLiquidGlassBottomBarState
     // Main glass bar (without outer padding so rubber banding only affects it).
     Widget mainBar = CupertinoLiquidGlass(
       theme: widget.theme,
+      enabled: widget.enableGlass,
       borderRadius:
           widget.borderRadius ?? const BorderRadius.all(Radius.circular(26.0)),
       padding: EdgeInsets.zero,

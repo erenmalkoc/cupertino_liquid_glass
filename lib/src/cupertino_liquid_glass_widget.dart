@@ -79,6 +79,18 @@ class CupertinoLiquidGlass extends StatelessWidget {
   /// The blur radius of the [glowColor] bloom. Defaults to 24.0.
   final double glowRadius;
 
+  /// When false, the backdrop blur and all decorative glass layers (vibrancy,
+  /// specular, inner shadow, noise grain, edge light) are skipped and the
+  /// surface falls back to a solid Cupertino system-grey background.
+  ///
+  /// Useful as a low-power fallback or as a design opt-out — wrappers like
+  /// [CupertinoLiquidGlassBottomBar] forward their own `enableGlass` flag here.
+  final bool enabled;
+
+  /// Optional solid background color used when [enabled] is false. When null,
+  /// `CupertinoColors.systemGrey6` is resolved against the current brightness.
+  final Color? disabledColor;
+
   /// Creates a [CupertinoLiquidGlass] widget.
   const CupertinoLiquidGlass({
     super.key,
@@ -96,6 +108,8 @@ class CupertinoLiquidGlass extends StatelessWidget {
     this.height,
     this.glowColor,
     this.glowRadius = 24.0,
+    this.enabled = true,
+    this.disabledColor,
   });
 
   /// Resolves the effective theme by merging explicit overrides on top of
@@ -123,6 +137,10 @@ class CupertinoLiquidGlass extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolved = _resolveTheme(context);
+
+    if (!enabled) {
+      return _buildDisabled(context, resolved);
+    }
 
     return RepaintBoundary(
       child: Container(
@@ -154,6 +172,50 @@ class CupertinoLiquidGlass extends StatelessWidget {
               child: child,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Solid Cupertino-style surface used when [enabled] is false. Keeps the
+  /// shape, shadow and glow but drops every layer that depends on backdrop
+  /// sampling, so it can be used as a cheap fallback on low-end devices.
+  Widget _buildDisabled(BuildContext context, LiquidGlassThemeData resolved) {
+    final brightness =
+        CupertinoTheme.of(context).brightness ?? Brightness.light;
+    // Mirror CupertinoColors.systemGrey6 light/dark values directly — avoids
+    // depending on an ambient CupertinoTheme for color resolution.
+    final solid = disabledColor ??
+        (brightness == Brightness.dark
+            ? const Color(0xFF1C1C1E)
+            : const Color(0xFFF2F2F7));
+
+    return RepaintBoundary(
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: solid,
+          borderRadius: resolved.borderRadius,
+          border: resolved.borderWidth > 0
+              ? Border.all(
+                  color: resolved.edgeShadowColor,
+                  width: resolved.borderWidth,
+                )
+              : null,
+          boxShadow: [
+            ...?resolved.shadows,
+            if (glowColor != null)
+              BoxShadow(
+                color: glowColor!.withValues(alpha: 0.45),
+                blurRadius: glowRadius,
+                spreadRadius: 2.0,
+              ),
+          ],
+        ),
+        child: Padding(
+          padding: padding ?? EdgeInsets.zero,
+          child: child,
         ),
       ),
     );
@@ -512,6 +574,11 @@ class LiquidGlassDetachedButton extends StatefulWidget {
   /// the brightness-derived preset is used to let backdrop colors bleed through.
   final LiquidGlassThemeData? theme;
 
+  /// When false, the button falls back to a solid Cupertino system-grey surface
+  /// instead of the live backdrop-blur glass effect (the iridescent sweep is
+  /// also suppressed in that mode). Defaults to true.
+  final bool enableGlass;
+
   /// Creates a [LiquidGlassDetachedButton].
   const LiquidGlassDetachedButton({
     super.key,
@@ -520,6 +587,7 @@ class LiquidGlassDetachedButton extends StatefulWidget {
     this.size = 52.0,
     this.iridescent = true,
     this.theme,
+    this.enableGlass = true,
   });
 
   @override
@@ -587,12 +655,15 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
         children: [
           CupertinoLiquidGlass(
             theme: resolvedTheme,
+            enabled: widget.enableGlass,
             borderRadius: borderRadius,
             width: widget.size,
             height: widget.size,
             child: Center(child: widget.child),
           ),
-          if (widget.iridescent)
+          // Iridescent sweep depends on backdrop sampling, so only render it
+          // when the glass effect is active.
+          if (widget.iridescent && widget.enableGlass)
             Positioned.fill(
               child: IgnorePointer(
                 child: ClipRRect(

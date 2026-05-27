@@ -59,6 +59,11 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
   /// Whether to include the top safe-area padding (status bar inset).
   final bool useSafeArea;
 
+  /// When false, the bar falls back to a solid Cupertino system-grey surface
+  /// instead of the live backdrop-blur glass effect. Useful as a low-power
+  /// fallback or design opt-out. Defaults to true.
+  final bool enableGlass;
+
   /// An optional floating circular glass button rendered to the right of the
   /// main bar, visually detached from it.
   ///
@@ -75,6 +80,7 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
     this.borderRadius,
     this.horizontalMargin = 8.0,
     this.useSafeArea = true,
+    this.enableGlass = true,
     this.detachedButton,
   });
 
@@ -85,6 +91,7 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
 
     final mainBar = CupertinoLiquidGlass(
       theme: theme,
+      enabled: enableGlass,
       borderRadius:
           borderRadius ?? const BorderRadius.all(Radius.circular(22.0)),
       height: _kNavBarContentHeight,
