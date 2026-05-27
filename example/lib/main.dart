@@ -16,6 +16,7 @@ class LiquidGlassExampleApp extends StatefulWidget {
 
 class _LiquidGlassExampleAppState extends State<LiquidGlassExampleApp> {
   bool _isDark = false;
+  bool _enableGlass = true;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +29,8 @@ class _LiquidGlassExampleAppState extends State<LiquidGlassExampleApp> {
       home: _HomePage(
         isDark: _isDark,
         onToggle: () => setState(() => _isDark = !_isDark),
+        enableGlass: _enableGlass,
+        onGlassToggle: () => setState(() => _enableGlass = !_enableGlass),
       ),
     );
   }
@@ -40,8 +43,15 @@ class _LiquidGlassExampleAppState extends State<LiquidGlassExampleApp> {
 class _HomePage extends StatefulWidget {
   final bool isDark;
   final VoidCallback onToggle;
+  final bool enableGlass;
+  final VoidCallback onGlassToggle;
 
-  const _HomePage({required this.isDark, required this.onToggle});
+  const _HomePage({
+    required this.isDark,
+    required this.onToggle,
+    required this.enableGlass,
+    required this.onGlassToggle,
+  });
 
   @override
   State<_HomePage> createState() => _HomePageState();
@@ -57,7 +67,12 @@ class _HomePageState extends State<_HomePage> {
     final pages = <Widget>[
       const _GalleryPage(),
       const _EffectsPage(),
-      _ThemePage(isDark: widget.isDark, onToggle: widget.onToggle),
+      _ThemePage(
+        isDark: widget.isDark,
+        onToggle: widget.onToggle,
+        enableGlass: widget.enableGlass,
+        onGlassToggle: widget.onGlassToggle,
+      ),
     ];
 
     return CupertinoPageScaffold(
@@ -71,6 +86,7 @@ class _HomePageState extends State<_HomePage> {
             left: 0,
             right: 0,
             child: CupertinoLiquidGlassNavBar(
+              enableGlass: widget.enableGlass,
               title: Text(_titles[_tab]),
               trailing: CupertinoButton(
                 padding: EdgeInsets.zero,
@@ -84,6 +100,7 @@ class _HomePageState extends State<_HomePage> {
               ),
               detachedButton: LiquidGlassDetachedButton(
                 size: 44,
+                enableGlass: widget.enableGlass,
                 onTap: () {},
                 child: const Icon(CupertinoIcons.plus, size: 20),
               ),
@@ -97,6 +114,7 @@ class _HomePageState extends State<_HomePage> {
             right: 0,
             child: CupertinoLiquidGlassBottomBar(
               currentIndex: _tab,
+              enableGlass: widget.enableGlass,
               onTap: (i) => setState(() => _tab = i),
               items: const [
                 LiquidGlassBottomBarItem(
@@ -116,6 +134,7 @@ class _HomePageState extends State<_HomePage> {
                 ),
               ],
               detachedButton: LiquidGlassDetachedButton(
+                enableGlass: widget.enableGlass,
                 onTap: () {},
                 child: const Icon(
                   CupertinoIcons.search,
@@ -447,8 +466,15 @@ class _EffectsPageState extends State<_EffectsPage> {
 class _ThemePage extends StatelessWidget {
   final bool isDark;
   final VoidCallback onToggle;
+  final bool enableGlass;
+  final VoidCallback onGlassToggle;
 
-  const _ThemePage({required this.isDark, required this.onToggle});
+  const _ThemePage({
+    required this.isDark,
+    required this.onToggle,
+    required this.enableGlass,
+    required this.onGlassToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -465,21 +491,25 @@ class _ThemePage extends StatelessWidget {
             right: 16,
           ),
           children: [
-            // Dark mode toggle
+            // Dark mode + Glass Effect toggles
             CupertinoLiquidGlass(
               padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  horizontal: 20, vertical: 8),
+              child: Column(
                 children: [
-                  const Text(
-                    'Dark Mode',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 17),
-                  ),
-                  CupertinoSwitch(
+                  _ToggleRow(
+                    label: 'Dark Mode',
                     value: isDark,
                     onChanged: (_) => onToggle(),
+                  ),
+                  Container(
+                    height: 0.5,
+                    color: CupertinoColors.separator.resolveFrom(context),
+                  ),
+                  _ToggleRow(
+                    label: 'Glass Effect',
+                    value: enableGlass,
+                    onChanged: (_) => onGlassToggle(),
                   ),
                 ],
               ),
@@ -774,6 +804,39 @@ class _ThemeCard extends StatelessWidget {
               theme.vibrancyIntensity.toStringAsFixed(2)),
           _ThemeRow('innerShadowBlurRadius',
               theme.innerShadowBlurRadius.toStringAsFixed(1)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Label + [CupertinoSwitch] row used in the Theme page settings card.
+class _ToggleRow extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _ToggleRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 17,
+            ),
+          ),
+          CupertinoSwitch(value: value, onChanged: onChanged),
         ],
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
@@ -364,6 +366,22 @@ class _CupertinoLiquidGlassBottomBarState
     );
   }
 
+  /// Safety net for cases where [onHorizontalDragEnd] is swallowed — a parent
+  /// recognizer reclaiming the gesture arena mid-drag, the OS interrupting
+  /// the pointer (system gesture, app backgrounding), etc. [Listener] still
+  /// fires raw pointer up/cancel in those cases, so use that as a backup:
+  /// defer one microtask so the normal end path can run first, and if the
+  /// drag flag is still set, force-cleanup so the bar doesn't stay stuck in
+  /// the expanded rubber-band scale.
+  void _onPointerRelease(PointerEvent _) {
+    if (!_isDragging) return;
+    scheduleMicrotask(() {
+      if (_isDragging && mounted) {
+        _onDragCancel();
+      }
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
@@ -410,7 +428,11 @@ class _CupertinoLiquidGlassBottomBarState
           builder: (context, constraints) {
             final contentWidth = constraints.maxWidth;
 
-            return GestureDetector(
+            return Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerUp: _onPointerRelease,
+              onPointerCancel: _onPointerRelease,
+              child: GestureDetector(
               onTapUp: (d) => _onTapUp(d, contentWidth),
               onHorizontalDragStart: _onDragStart,
               onHorizontalDragUpdate: (d) => _onDragUpdate(d, contentWidth),
@@ -445,6 +467,7 @@ class _CupertinoLiquidGlassBottomBarState
                     }),
                   ),
                 ),
+              ),
               ),
             );
           },
