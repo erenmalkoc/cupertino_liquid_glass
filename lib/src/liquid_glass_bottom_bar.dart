@@ -26,16 +26,16 @@ class LiquidGlassBottomBarItem {
 }
 
 /// Tab bar height (excluding safe area).
-const double _kTabBarHeight = 56.0;
+const double _kTabBarHeight = 52.0;
 
-/// Minimum touch target size.
-const double _kMinHitTarget = 48.0;
+/// Minimum touch target size (Apple HIG minimum).
+const double _kMinHitTarget = 44.0;
 
-/// Icon size for tab bars.
-const double _kIconSize = 28.0;
+/// Icon size for tab bars (Apple HIG standard).
+const double _kIconSize = 25.0;
 
 /// Label font size for tab bars.
-const double _kLabelFontSize = 11.0;
+const double _kLabelFontSize = 10.0;
 
 /// Sliding window (ms) used to smooth the drag velocity for the stretch effect.
 const int _kVelocityWindowMs = 90;
@@ -48,7 +48,7 @@ const double _kVelocityJitterPx = 0.4;
 /// featuring a sliding fluid indicator with spring physics.
 ///
 /// Follows Apple HIG specifications:
-/// * Bar height: 49 pt (+ 34 pt safe area on Face ID devices)
+/// * Bar height: 52 pt (+ 34 pt safe area on Face ID devices)
 /// * Icon size: 25 pt
 /// * Touch target: minimum 44x44 pt
 /// * Horizontal distribution: equal width per tab

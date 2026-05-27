@@ -500,7 +500,7 @@ class LiquidGlassDetachedButton extends StatefulWidget {
   /// Called when the button is tapped.
   final VoidCallback? onTap;
 
-  /// Diameter of the circular button. Defaults to 56 pt (matches bottom bar).
+  /// Diameter of the circular button. Defaults to 52 pt (matches bottom bar).
   final double size;
 
   /// When true, a subtle sweep gradient simulating prismatic light refraction
@@ -517,7 +517,7 @@ class LiquidGlassDetachedButton extends StatefulWidget {
     super.key,
     required this.child,
     this.onTap,
-    this.size = 56.0,
+    this.size = 52.0,
     this.iridescent = true,
     this.theme,
   });
