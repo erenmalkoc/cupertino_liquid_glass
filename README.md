@@ -46,14 +46,14 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 
 | Requirement | Minimum |
 |---|---|
-| Flutter | 3.27.0 |
+| Flutter | 3.32.0 |
 | Dart SDK | 3.11.3 |
 
 ### Installation
 
 ```yaml
 dependencies:
-  cupertino_liquid_glass: ^0.6.0
+  cupertino_liquid_glass: ^0.7.0
 ```
 
 ```bash

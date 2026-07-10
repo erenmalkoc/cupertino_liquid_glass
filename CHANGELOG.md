@@ -1,3 +1,35 @@
+## 0.7.0
+
+Performance & pixel-fidelity release: eliminates the transition stutter and per-device pixel artifacts reported on mid/low-end hardware, bringing the rendering pipeline much closer to native iOS materials.
+
+### Jank fixes
+* **Value-equal themes, correct `shouldRepaint`**: `LiquidGlassThemeData` now implements `==`/`hashCode`, `light()`/`dark()` return canonical const instances, and `copyWith()`/`lerp()` short-circuit no-op calls. The glass painters compare themes by value instead of `identical()`, so the full glass stack (tint, specular, inner shadow, noise, border) no longer re-rasterizes on every ancestor rebuild — previously the single biggest jank source during any transition.
+* **Pre-baked noise grain**: the grain is rendered once into a small repeating `ui.Image` tile (per DPR, via `toImageSync`) and drawn with an `ImageShader` — one textured quad instead of regenerating and drawing up to 5000 random round points per repaint. Grains are snapped to whole physical pixels, so the texture renders identically on Impeller and Skia at every DPR.
+* **Vibrancy moved into the backdrop pass**: the `BlendMode.overlay` vibrancy layer is replaced by a saturation `ColorFilter` composed with the blur (`ImageFilter.compose`) — UIKit's actual saturate-then-blur recipe — removing an advanced-blend offscreen pass per frame.
+* **No more per-frame Gaussians in the tab bar**: the selector bloom and the icon glow/specular halos now use concentric fills and radial gradients instead of `MaskFilter.blur`, eliminating 3–5 offscreen blur passes per animation frame; the selector's highlight shader and paints are cached instead of allocated per frame.
+* **Scoped tab rebuilds**: each tab subscribes to its own quantized proximity notifier — tabs more than one index from the selector no longer rebuild at all during drags and spring settles.
+* **No per-frame text relayout**: tab-label weight switches once at the selection threshold instead of `FontWeight.lerp` per frame, which snapped through discrete weights (visible label jitter) and forced a full paragraph relayout every frame.
+* **Detached button press**: the `Opacity` wrapper (a per-frame saveLayer over the backdrop filter) is replaced by a scrim painted inside the glass; the press animation early-outs at rest.
+* **Shared backdrop readbacks**: `CupertinoLiquidGlass` uses `BackdropFilter.grouped`, so multiple glass surfaces under a `BackdropGroup` (see the example's gallery list) share a single backdrop snapshot per frame. Requires Flutter 3.32+.
+
+### Pixel-artifact fixes
+* **Edge fringe eliminated**: the backdrop blur no longer forces `TileMode.decal`, which mixed transparent black into the blur kernel near every edge and produced a dark/washed vignette (up to ~3·sigma wide) that rendered differently on Impeller vs Skia. The engine now picks the artifact-free backdrop tile mode.
+* **Permanently-blurry bar after first drag fixed**: the rubber-band spring settles within tolerance, never at exactly 1.0, so a lingering ~0.999 `Transform` kept resampling the whole bar (soft labels, shimmering hairlines). The scale now snaps to identity near rest and the controller is pinned to 1.0 on completion; the settle simulation also uses a tighter explicit tolerance so it stops as soon as motion is imperceptible.
+* **Double-antialiasing halo removed**: flat glass layers (tint, specular) are painted full-bleed and shaped by the ancestor clip alone, removing the ~1px halo along rounded corners caused by two independently antialiased edges.
+* **Physical-pixel hairline border**: the edge-light stroke width is snapped to a whole number of physical pixels per DPR (0.75pt mapped to e.g. 1.97px on DPR 2.625 and looked ropey around corners).
+* **Clean glass, no baked-in shadow**: drop shadows and glow are now painted with the glass footprint punched out, so the backdrop blur no longer samples the widget's own shadow (which darkened/muddied the surface, worst in dark mode).
+* **Inner shadow accuracy**: the punch-out rect is inflated by 4× the blur radius so the outer edge's blur tail can't bleed a faint band back into the surface.
+* **Selector overflow clamp**: a velocity-stretched pill can no longer slide under the bar's rounded clip at edge tabs during fast flings (it was visibly sliced flat).
+
+### Native-feel & accessibility
+* **Selection haptics**: the bottom bar fires `HapticFeedback.selectionClick()` when the selection changes (like `UISelectionFeedbackGenerator`); opt out with `enableHaptics: false`.
+* **Reduce Motion**: when `MediaQuery.disableAnimationsOf` is true, the selector jumps without springs/overshoot, rubber banding is skipped, and the detached button uses a short non-elastic release.
+* **Screen readers**: tab items expose proper semantics (button, selected state, label, "Tab X of N" hint, tap action); `LiquidGlassDetachedButton` gains `semanticLabel`; nav-bar titles are announced as headers.
+* **Dynamic Type safety**: tab-bar labels clamp text scaling (native iOS tab bars don't scale labels), preventing clipped/overflowing pixels at accessibility text sizes.
+* **Monotonic velocity clock**: drag velocity sampling latches a single clock domain per gesture (no more mixing `sourceTimeStamp` with wall-clock time, which corrupted the stretch effect on some devices).
+* **Scoped MediaQuery**: the nav bar uses `MediaQuery.viewPaddingOf` instead of `MediaQuery.of`, so keyboard-inset animations no longer rebuild the glass bar every frame.
+* **Example app**: tabs live in an `IndexedStack` (state preserved, no full-page re-raster mid transition), one shared background, `BackdropGroup` around the page content, aspect-scoped MediaQuery accessors.
+
 ## 0.6.0
 
 * **Smooth drag (perf)**: Bottom-bar drag is no longer fighting a running spring simulation. The controller now stops at drag start, position and velocity moved into `ValueNotifier`s and the selector painter subscribes via `repaint:` — no `setState` per frame. Glass surface + selector painter are isolated by a `RepaintBoundary` so backdrop blur and noise grain are not re-rasterized while dragging.
