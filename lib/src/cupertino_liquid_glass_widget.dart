@@ -1,7 +1,8 @@
 import 'dart:math' as math;
-import 'dart:ui';
+import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
 import 'liquid_glass_theme.dart';
 
@@ -143,38 +144,68 @@ class CupertinoLiquidGlass extends StatelessWidget {
     }
 
     return RepaintBoundary(
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
+      child: CustomPaint(
+        painter: _OuterShadowPainter(
           borderRadius: resolved.borderRadius,
-          boxShadow: [
-            ...?resolved.shadows,
-            if (glowColor != null)
-              BoxShadow(
-                color: glowColor!.withValues(alpha: 0.45),
-                blurRadius: glowRadius,
-                spreadRadius: 2.0,
-              ),
-          ],
+          shadows: resolved.shadows,
+          glowColor: glowColor,
+          glowRadius: glowRadius,
         ),
-        child: ClipRRect(
-          borderRadius: resolved.borderRadius,
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: resolved.blurSigma,
-              sigmaY: resolved.blurSigma,
-              tileMode: TileMode.decal,
-            ),
-            child: _GlassSurface(
-              theme: resolved,
-              padding: padding,
-              child: child,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: ClipRRect(
+            borderRadius: resolved.borderRadius,
+            child: BackdropFilter.grouped(
+              filter: _backdropFilter(resolved),
+              child: _GlassSurface(
+                theme: resolved,
+                padding: padding,
+                child: child,
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// Builds the backdrop filter: a Gaussian blur, optionally composed with a
+  /// saturation boost that implements the vibrancy effect inside the same
+  /// backdrop pass.
+  ///
+  /// Doing vibrancy in the filter chain (saturate-then-blur, like UIKit
+  /// materials) avoids the advanced-blend offscreen pass a
+  /// [BlendMode.overlay] draw would cost on every frame. The tile mode is
+  /// left to the engine, which picks the artifact-free mode for backdrop
+  /// blurs — an explicit [TileMode.decal] would mix transparent black into
+  /// the edges and produce a dark fringe around the glass.
+  static ui.ImageFilter _backdropFilter(LiquidGlassThemeData theme) {
+    final blur = ui.ImageFilter.blur(
+      sigmaX: theme.blurSigma,
+      sigmaY: theme.blurSigma,
+    );
+    if (theme.vibrancyIntensity <= 0) {
+      return blur;
+    }
+    return ui.ImageFilter.compose(
+      outer: _saturationFilter(1.0 + theme.vibrancyIntensity * 1.5),
+      inner: blur,
+    );
+  }
+
+  /// A luminance-preserving saturation matrix color filter.
+  static ColorFilter _saturationFilter(double saturation) {
+    final inv = 1.0 - saturation;
+    final r = 0.2126 * inv;
+    final g = 0.7152 * inv;
+    final b = 0.0722 * inv;
+    return ColorFilter.matrix(<double>[
+      r + saturation, g, b, 0, 0, //
+      r, g + saturation, b, 0, 0, //
+      r, g, b + saturation, 0, 0, //
+      0, 0, 0, 1, 0,
+    ]);
   }
 
   /// Solid Cupertino-style surface used when [enabled] is false. Keeps the
@@ -185,7 +216,8 @@ class CupertinoLiquidGlass extends StatelessWidget {
         CupertinoTheme.of(context).brightness ?? Brightness.light;
     // Mirror CupertinoColors.systemGrey6 light/dark values directly — avoids
     // depending on an ambient CupertinoTheme for color resolution.
-    final solid = disabledColor ??
+    final solid =
+        disabledColor ??
         (brightness == Brightness.dark
             ? const Color(0xFF1C1C1E)
             : const Color(0xFFF2F2F7));
@@ -213,44 +245,117 @@ class CupertinoLiquidGlass extends StatelessWidget {
               ),
           ],
         ),
-        child: Padding(
-          padding: padding ?? EdgeInsets.zero,
-          child: child,
-        ),
+        child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
       ),
     );
   }
 }
 
-/// Internal widget that composites vibrancy, tint, inner shadow, specular
-/// highlight, noise, and edge-lit border layers on top of the blurred backdrop.
+/// Paints the drop shadow and optional glow *around* the glass surface.
+///
+/// The glass footprint is punched out of the shadow region before painting:
+/// a [BoxDecoration.boxShadow] would also fill the area *under* the glass,
+/// and the [BackdropFilter] would then sample its own shadow and bake a dark
+/// haze into the surface. Clipping the shadow to the outside keeps the
+/// backdrop clean, like native iOS materials.
+class _OuterShadowPainter extends CustomPainter {
+  final BorderRadius borderRadius;
+  final List<BoxShadow>? shadows;
+  final Color? glowColor;
+  final double glowRadius;
+
+  const _OuterShadowPainter({
+    required this.borderRadius,
+    required this.shadows,
+    required this.glowColor,
+    required this.glowRadius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final hasShadows = shadows != null && shadows!.isNotEmpty;
+    if (!hasShadows && glowColor == null) return;
+
+    final rect = Offset.zero & size;
+    final rrect = borderRadius.toRRect(rect);
+
+    final outside = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(rect.inflate(_maxExtent())),
+      Path()..addRRect(rrect),
+    );
+
+    canvas.save();
+    canvas.clipPath(outside);
+    if (hasShadows) {
+      for (final shadow in shadows!) {
+        canvas.drawRRect(
+          rrect.shift(shadow.offset).inflate(shadow.spreadRadius),
+          shadow.toPaint(),
+        );
+      }
+    }
+    if (glowColor != null) {
+      canvas.drawRRect(
+        rrect.inflate(2.0),
+        Paint()
+          ..color = glowColor!.withValues(alpha: 0.45)
+          ..maskFilter = MaskFilter.blur(
+            BlurStyle.normal,
+            Shadow.convertRadiusToSigma(glowRadius),
+          ),
+      );
+    }
+    canvas.restore();
+  }
+
+  /// Conservative bound on how far any shadow can reach beyond the surface.
+  double _maxExtent() {
+    var max = glowColor != null ? glowRadius + 2.0 : 0.0;
+    for (final shadow in shadows ?? const <BoxShadow>[]) {
+      final extent =
+          shadow.blurRadius + shadow.spreadRadius + shadow.offset.distance;
+      if (extent > max) max = extent;
+    }
+    return max + 8.0;
+  }
+
+  @override
+  bool shouldRepaint(_OuterShadowPainter oldDelegate) =>
+      borderRadius != oldDelegate.borderRadius ||
+      !listEquals(shadows, oldDelegate.shadows) ||
+      glowColor != oldDelegate.glowColor ||
+      glowRadius != oldDelegate.glowRadius;
+}
+
+/// Internal widget that composites tint, inner shadow, specular highlight,
+/// noise, and edge-lit border layers on top of the blurred backdrop.
 class _GlassSurface extends StatelessWidget {
   final LiquidGlassThemeData theme;
   final EdgeInsetsGeometry? padding;
   final Widget child;
 
-  const _GlassSurface({
-    required this.theme,
-    required this.child,
-    this.padding,
-  });
+  const _GlassSurface({required this.theme, required this.child, this.padding});
 
   @override
   Widget build(BuildContext context) {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return CustomPaint(
       painter: _GlassBackgroundPainter(theme: theme),
-      foregroundPainter: _GlassForegroundPainter(theme: theme, devicePixelRatio: dpr),
-      child: Padding(
-        padding: padding ?? EdgeInsets.zero,
-        child: child,
+      foregroundPainter: _GlassForegroundPainter(
+        theme: theme,
+        devicePixelRatio: dpr,
       ),
+      isComplex: true,
+      willChange: false,
+      child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
     );
   }
 }
 
-/// Paints the vibrancy overlay, tint, specular gradient, and inner shadow
-/// behind the child content.
+/// Paints the tint, specular gradient, and inner shadow behind the child
+/// content. (The vibrancy boost lives in the backdrop filter chain — see
+/// [CupertinoLiquidGlass._backdropFilter].)
 class _GlassBackgroundPainter extends CustomPainter {
   final LiquidGlassThemeData theme;
 
@@ -261,51 +366,43 @@ class _GlassBackgroundPainter extends CustomPainter {
     final rect = Offset.zero & size;
     final rrect = theme.borderRadius.toRRect(rect);
 
-    // 1. Vibrancy / saturation boost — a subtle overlay blend that
-    //    perceptually increases the contrast and saturation of the
-    //    blurred backdrop, simulating Apple's vibrancy effect.
-    if (theme.vibrancyIntensity > 0) {
-      canvas.drawRRect(
-        rrect,
-        Paint()
-          ..color = Color.fromRGBO(255, 255, 255, theme.vibrancyIntensity)
-          ..blendMode = BlendMode.overlay,
-      );
-    }
+    // The ancestor ClipRRect already shapes the surface, so flat layers are
+    // painted full-bleed: drawing them as an rrect matching the clip would
+    // double-antialias the same edge and leave a ~1px halo along the corners.
 
-    // 2. Tint layer — the primary coloured overlay.
-    canvas.drawRRect(
-      rrect,
+    // 1. Tint layer — the primary coloured overlay.
+    canvas.drawRect(
+      rect,
       Paint()..color = theme.tintColor.withValues(alpha: theme.tintOpacity),
     );
 
-    // 3. Specular gradient — the "liquid" sheen.
+    // 2. Specular gradient — the "liquid" sheen.
     if (theme.specularGradient case final LinearGradient src) {
-      canvas.drawRRect(
-        rrect,
+      canvas.drawRect(
+        rect,
         Paint()
           ..shader = LinearGradient(
             begin: src.begin,
             end: src.end,
             colors: src.colors
-                .map(
-                  (c) =>
-                      c.withValues(alpha: c.a * theme.specularOpacity),
-                )
+                .map((c) => c.withValues(alpha: c.a * theme.specularOpacity))
                 .toList(),
             stops: src.stops,
           ).createShader(rect),
       );
     }
 
-    // 4. Inner shadow — the "carved out of glass" depth.
+    // 3. Inner shadow — the "carved out of glass" depth.
     //    Draws a large rect with an evenOdd hole punched out, then blurs
     //    it so only the soft inner edge is visible inside the clip region.
     if (theme.innerShadowBlurRadius > 0) {
       canvas.save();
       canvas.clipRRect(rrect);
 
-      final inflate = theme.innerShadowBlurRadius * 2;
+      // Inflate by 4x the blur radius so the outer rect's own blur tail
+      // (~3 sigma) stays fully outside the clip and cannot bleed a faint
+      // band back into the surface.
+      final inflate = theme.innerShadowBlurRadius * 4;
       final shadowPath = Path()
         ..addRect(rect.inflate(inflate))
         ..addRRect(rrect);
@@ -327,7 +424,7 @@ class _GlassBackgroundPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GlassBackgroundPainter oldDelegate) =>
-      !identical(theme, oldDelegate.theme);
+      theme != oldDelegate.theme;
 }
 
 /// Paints the noise grain overlay and edge-lit gradient border on top of
@@ -341,37 +438,104 @@ class _GlassForegroundPainter extends CustomPainter {
     required this.devicePixelRatio,
   });
 
+  /// Cached repeating noise tiles keyed by device pixel ratio.
+  ///
+  /// Each tile is baked once via [ui.Picture.toImageSync] with full-opacity
+  /// grain pixels; the paint color's alpha modulates the tile at draw time,
+  /// so changing [LiquidGlassThemeData.noiseOpacity] never requires a
+  /// re-bake. This replaces regenerating and drawing up to 5000 random
+  /// points on every repaint.
+  static final Map<int, ui.Image> _noiseTileCache = <int, ui.Image>{};
+
+  static ui.Image _noiseTile(double dpr) {
+    final key = (dpr * 100).round();
+    return _noiseTileCache[key] ??= _generateNoiseTile(dpr);
+  }
+
+  static ui.Image _generateNoiseTile(double dpr) {
+    const logicalSide = 64.0;
+    final side = (logicalSide * dpr).round().clamp(32, 512);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final random = math.Random(42);
+    final light = Paint()..color = const Color(0xFFFFFFFF);
+    final dark = Paint()..color = const Color(0xFF000000);
+
+    // One grain per ~20 logical px², matching the previous point density.
+    // Grains are 1 physical pixel, snapped to the physical grid, so they
+    // render identically on every backend and DPR (fractional sub-pixel
+    // round points rendered inconsistently between Impeller and Skia).
+    final count = (logicalSide * logicalSide / 20).round();
+    for (var i = 0; i < count; i++) {
+      final x = random.nextInt(side).toDouble();
+      final y = random.nextInt(side).toDouble();
+      canvas.drawRect(
+        Rect.fromLTWH(x, y, 1, 1),
+        random.nextBool() ? light : dark,
+      );
+    }
+
+    final picture = recorder.endRecording();
+    final image = picture.toImageSync(side, side);
+    picture.dispose();
+    return image;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final rrect = theme.borderRadius.toRRect(rect);
 
     // 1. Noise grain overlay — microscopic texture that prevents banding
-    //    and makes the glass surface look physical.
+    //    and makes the glass surface look physical. Drawn as a repeating
+    //    pre-baked tile: a single textured quad instead of thousands of
+    //    point draws per repaint.
     if (theme.noiseOpacity > 0) {
-      _drawNoise(canvas, rrect, rect);
+      final tile = _noiseTile(devicePixelRatio);
+      final transform = Matrix4.diagonal3Values(
+        1.0 / devicePixelRatio,
+        1.0 / devicePixelRatio,
+        1.0,
+      );
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = ui.ImageShader(
+            tile,
+            TileMode.repeated,
+            TileMode.repeated,
+            transform.storage,
+          )
+          // The color's alpha modulates the shader output.
+          ..color = Color.fromRGBO(255, 255, 255, theme.noiseOpacity),
+      );
     }
 
-    // 2. Edge-lit gradient border — a 1px stroke with a LinearGradient
+    // 2. Edge-lit gradient border — a hairline stroke with a LinearGradient
     //    from bright (top-left) to dark (bottom-right), simulating
-    //    directional light catching the glass edge.
+    //    directional light catching the glass edge. The stroke width is
+    //    snapped to a whole number of physical pixels so the hairline
+    //    renders evenly on every DPR (a 0.75pt stroke maps to e.g. 1.97
+    //    physical px on DPR 2.625 and looks ropey around corners).
     if (theme.borderWidth > 0) {
-      final borderRRect = rrect.deflate(theme.borderWidth / 2);
+      final strokeWidth =
+          math.max(
+            1.0,
+            (theme.borderWidth * devicePixelRatio).roundToDouble(),
+          ) /
+          devicePixelRatio;
+      final borderRRect = rrect.deflate(strokeWidth / 2);
       canvas.drawRRect(
         borderRRect,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = theme.borderWidth
+          ..strokeWidth = strokeWidth
           ..shader = LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
               theme.edgeLightColor,
-              Color.lerp(
-                theme.edgeLightColor,
-                theme.edgeShadowColor,
-                0.5,
-              )!,
+              Color.lerp(theme.edgeLightColor, theme.edgeShadowColor, 0.5)!,
               theme.edgeShadowColor,
             ],
             stops: const [0.0, 0.5, 1.0],
@@ -380,59 +544,9 @@ class _GlassForegroundPainter extends CustomPainter {
     }
   }
 
-  void _drawNoise(Canvas canvas, RRect rrect, Rect rect) {
-    canvas.save();
-    canvas.clipRRect(rrect);
-
-    final random = math.Random(42);
-    final density =
-        (rect.width * rect.height / 20).toInt().clamp(100, 5000);
-
-    final lightPoints = <Offset>[];
-    final darkPoints = <Offset>[];
-
-    for (int i = 0; i < density; i++) {
-      final offset = Offset(
-        rect.left + random.nextDouble() * rect.width,
-        rect.top + random.nextDouble() * rect.height,
-      );
-      if (random.nextBool()) {
-        lightPoints.add(offset);
-      } else {
-        darkPoints.add(offset);
-      }
-    }
-
-    final grainSize = 1.0 / devicePixelRatio;
-
-    if (lightPoints.isNotEmpty) {
-      canvas.drawPoints(
-        PointMode.points,
-        lightPoints,
-        Paint()
-          ..color = Color.fromRGBO(255, 255, 255, theme.noiseOpacity)
-          ..strokeWidth = grainSize
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-
-    if (darkPoints.isNotEmpty) {
-      canvas.drawPoints(
-        PointMode.points,
-        darkPoints,
-        Paint()
-          ..color = Color.fromRGBO(0, 0, 0, theme.noiseOpacity)
-          ..strokeWidth = grainSize
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-
-    canvas.restore();
-  }
-
   @override
   bool shouldRepaint(_GlassForegroundPainter oldDelegate) =>
-      !identical(theme, oldDelegate.theme) ||
+      theme != oldDelegate.theme ||
       devicePixelRatio != oldDelegate.devicePixelRatio;
 }
 
@@ -579,6 +693,9 @@ class LiquidGlassDetachedButton extends StatefulWidget {
   /// also suppressed in that mode). Defaults to true.
   final bool enableGlass;
 
+  /// An optional label announced by screen readers (VoiceOver/TalkBack).
+  final String? semanticLabel;
+
   /// Creates a [LiquidGlassDetachedButton].
   const LiquidGlassDetachedButton({
     super.key,
@@ -588,6 +705,7 @@ class LiquidGlassDetachedButton extends StatefulWidget {
     this.iridescent = true,
     this.theme,
     this.enableGlass = true,
+    this.semanticLabel,
   });
 
   @override
@@ -598,6 +716,16 @@ class LiquidGlassDetachedButton extends StatefulWidget {
 class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _press;
+
+  /// Latched in [build]; honored by the release animation.
+  bool _reduceMotion = false;
+
+  /// More transparent variants of the presets, hoisted so the button never
+  /// allocates a theme during build (keeps painter shouldRepaint cheap).
+  static final LiquidGlassThemeData _lightDetachedTheme =
+      LiquidGlassThemeData.light().copyWith(tintOpacity: 0.28, blurSigma: 20.0);
+  static final LiquidGlassThemeData _darkDetachedTheme =
+      LiquidGlassThemeData.dark().copyWith(tintOpacity: 0.28, blurSigma: 20.0);
 
   @override
   void initState() {
@@ -625,10 +753,12 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
   void _onTapCancel() => _release();
 
   void _release() => _press.animateTo(
-        0.0,
-        duration: const Duration(milliseconds: 420),
-        curve: Curves.elasticOut,
-      );
+    0.0,
+    duration: _reduceMotion
+        ? const Duration(milliseconds: 80)
+        : const Duration(milliseconds: 420),
+    curve: _reduceMotion ? Curves.easeOut : Curves.elasticOut,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -636,17 +766,10 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
         CupertinoTheme.of(context).brightness ?? Brightness.light;
     final isDark = brightness == Brightness.dark;
     final borderRadius = BorderRadius.circular(widget.size / 2);
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    final resolvedTheme = widget.theme ??
-        (isDark
-            ? LiquidGlassThemeData.dark().copyWith(
-                tintOpacity: 0.28,
-                blurSigma: 20.0,
-              )
-            : LiquidGlassThemeData.light().copyWith(
-                tintOpacity: 0.28,
-                blurSigma: 20.0,
-              ));
+    final resolvedTheme =
+        widget.theme ?? (isDark ? _darkDetachedTheme : _lightDetachedTheme);
 
     final glassButton = SizedBox(
       width: widget.size,
@@ -678,21 +801,44 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
       ),
     );
 
-    return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: _onTapUp,
-      onTapCancel: _onTapCancel,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedBuilder(
-        animation: _press,
-        builder: (context, child) => Transform.scale(
-          scale: lerpDouble(1.0, 0.88, _press.value)!,
-          child: Opacity(
-            opacity: lerpDouble(1.0, 0.78, _press.value)!,
-            child: child,
-          ),
+    return Semantics(
+      button: true,
+      label: widget.semanticLabel,
+      child: GestureDetector(
+        onTapDown: _onTapDown,
+        onTapUp: _onTapUp,
+        onTapCancel: _onTapCancel,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedBuilder(
+          animation: _press,
+          // The pressed state is a scale plus a scrim painted *inside* the
+          // glass. An Opacity widget here would force a saveLayer of the
+          // whole backdrop-filtered subtree on every animation frame.
+          builder: (context, child) {
+            final t = _press.value;
+            if (t == 0.0) return child!;
+            return Transform.scale(
+              scale: ui.lerpDouble(1.0, 0.88, t)!,
+              child: Stack(
+                fit: StackFit.passthrough,
+                children: [
+                  child!,
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: ClipRRect(
+                        borderRadius: borderRadius,
+                        child: ColoredBox(
+                          color: Color.fromRGBO(0, 0, 0, 0.10 * t),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+          child: glassButton,
         ),
-        child: glassButton,
       ),
     );
   }
@@ -723,10 +869,7 @@ class _IridescentPainter extends CustomPainter {
       ],
     );
 
-    canvas.drawOval(
-      rect,
-      Paint()..shader = gradient.createShader(rect),
-    );
+    canvas.drawOval(rect, Paint()..shader = gradient.createShader(rect));
   }
 
   @override

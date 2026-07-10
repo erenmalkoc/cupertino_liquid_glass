@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart';
 
 import 'cupertino_liquid_glass_widget.dart';
 import 'liquid_glass_theme.dart';
@@ -136,6 +138,11 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
   /// damping fraction for a subtle overshoot.
   final SpringDescription? springDescription;
 
+  /// Whether to fire a selection haptic ([HapticFeedback.selectionClick])
+  /// when the selected tab changes — matching the native iOS tab bar's
+  /// `UISelectionFeedbackGenerator` behavior. Defaults to true.
+  final bool enableHaptics;
+
   /// An optional floating circular glass button rendered to the right of the
   /// main bar, visually detached from it.
   ///
@@ -160,6 +167,7 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.activeColor,
     this.inactiveColor,
     this.springDescription,
+    this.enableHaptics = true,
     this.detachedButton,
   });
 
@@ -180,10 +188,29 @@ class _CupertinoLiquidGlassBottomBarState
   /// Current velocity in fractional-index-per-second. Drives stretch only.
   late final ValueNotifier<double> _velocity;
 
+  /// One quantized proximity notifier per tab, derived from [_position].
+  ///
+  /// Each tab item listens only to its own notifier, so tabs whose proximity
+  /// did not change this frame (anything more than one index away from the
+  /// selector) never rebuild during drags or spring settles.
+  List<ValueNotifier<double>> _proximities = <ValueNotifier<double>>[];
+
   bool _isDragging = false;
+
+  /// Latched in [build]; when true, springs and rubber banding are skipped.
+  bool _reduceMotion = false;
 
   /// Sliding window of recent drag samples for velocity smoothing.
   final List<_VelocitySample> _velocitySamples = <_VelocitySample>[];
+
+  /// Monotonic fallback clock for velocity samples. Never mixed with
+  /// [DragUpdateDetails.sourceTimeStamp] within a single gesture — the two
+  /// are unrelated clock domains and mixing them corrupts the smoothed
+  /// velocity (the pill stretch then flickers on affected devices).
+  final Stopwatch _dragClock = Stopwatch()..start();
+
+  /// Whether the current gesture uses sourceTimeStamp or the fallback clock.
+  bool _useSourceTimeStamp = true;
 
   /// Apple-like spring: ~0.35s response, 0.75 damping fraction.
   static const _defaultSpring = SpringDescription(
@@ -210,17 +237,20 @@ class _CupertinoLiquidGlassBottomBarState
   void initState() {
     super.initState();
     final initial = widget.currentIndex.toDouble();
-    _position = ValueNotifier<double>(initial);
+    _position = ValueNotifier<double>(initial)..addListener(_syncProximities);
     _velocity = ValueNotifier<double>(0.0);
+    _rebuildProximities();
     _controller = AnimationController.unbounded(vsync: this, value: initial)
       ..addListener(_onSpringTick);
-    _elasticController =
-        AnimationController.unbounded(vsync: this, value: 1.0);
+    _elasticController = AnimationController.unbounded(vsync: this, value: 1.0);
   }
 
   @override
   void didUpdateWidget(CupertinoLiquidGlassBottomBar oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.items.length != widget.items.length) {
+      _rebuildProximities();
+    }
     if (oldWidget.currentIndex != widget.currentIndex && !_isDragging) {
       _animateTo(widget.currentIndex, initialVelocity: _velocity.value);
     }
@@ -232,12 +262,44 @@ class _CupertinoLiquidGlassBottomBarState
     _elasticController.dispose();
     _position.dispose();
     _velocity.dispose();
+    for (final p in _proximities) {
+      p.dispose();
+    }
     super.dispose();
   }
 
   // ---------------------------------------------------------------------------
   // Animation
   // ---------------------------------------------------------------------------
+
+  /// Proximity of tab [index] to the selector, quantized to 1/128 so
+  /// imperceptible sub-steps near settle don't trigger rebuilds.
+  double _proximityFor(int index, double pos) =>
+      (((1.0 - (pos - index).abs()).clamp(0.0, 1.0)) * 128).round() / 128;
+
+  void _rebuildProximities() {
+    final old = _proximities;
+    final pos = _position.value;
+    _proximities = List<ValueNotifier<double>>.generate(
+      widget.items.length,
+      (i) => i < old.length
+          ? (old[i]..value = _proximityFor(i, pos))
+          : ValueNotifier<double>(_proximityFor(i, pos)),
+    );
+    for (var i = _proximities.length; i < old.length; i++) {
+      old[i].dispose();
+    }
+  }
+
+  /// Pushes the current position into the per-tab proximity notifiers.
+  /// ValueNotifier skips notification when the value is unchanged, so only
+  /// tabs whose proximity actually moved rebuild.
+  void _syncProximities() {
+    final pos = _position.value;
+    for (var i = 0; i < _proximities.length; i++) {
+      _proximities[i].value = _proximityFor(i, pos);
+    }
+  }
 
   /// Mirrors the spring controller's value into the [_position] /
   /// [_velocity] notifiers. No [setState] — listeners drive their own repaints.
@@ -247,6 +309,13 @@ class _CupertinoLiquidGlassBottomBarState
   }
 
   void _animateTo(int index, {double initialVelocity = 0.0}) {
+    if (_reduceMotion) {
+      // Reduce Motion: jump directly, no spring or overshoot.
+      _controller.stop();
+      _controller.value = index.toDouble();
+      _velocity.value = 0.0;
+      return;
+    }
     _controller.animateWith(
       SpringSimulation(
         _spring,
@@ -257,17 +326,51 @@ class _CupertinoLiquidGlassBottomBarState
     );
   }
 
+  /// Commits a selection: fires the haptic (when it actually changes),
+  /// notifies the callback, and animates the selector.
+  void _selectTab(int index, {double initialVelocity = 0.0}) {
+    if (widget.enableHaptics && index != widget.currentIndex) {
+      HapticFeedback.selectionClick();
+    }
+    widget.onTap?.call(index);
+    _animateTo(index, initialVelocity: initialVelocity);
+  }
+
+  /// Springs the rubber-band scale toward [target] and pins the controller
+  /// to exactly 1.0 on natural completion. The spring settles within the
+  /// simulation tolerance (±0.001), never at exactly 1.0 — without the snap,
+  /// a permanent ~0.999 [Transform] would keep resampling the whole bar and
+  /// leave text and hairlines slightly blurry after the first drag.
+  void _animateElasticTo(double target) {
+    _elasticController
+        .animateWith(
+          SpringSimulation(
+            _elasticSpring,
+            _elasticController.value,
+            target,
+            0.0,
+            tolerance: const Tolerance(distance: 0.0005, velocity: 0.005),
+          ),
+        )
+        .whenComplete(() {
+          if (mounted && !_isDragging && target == 1.0) {
+            _elasticController.value = 1.0;
+          }
+        });
+  }
+
   // ---------------------------------------------------------------------------
   // Gestures
   // ---------------------------------------------------------------------------
 
   void _onTapUp(TapUpDetails details, double contentWidth) {
     final tabWidth = contentWidth / widget.items.length;
-    final index =
-        (details.localPosition.dx / tabWidth).floor().clamp(0, _maxIndex);
+    final index = (details.localPosition.dx / tabWidth).floor().clamp(
+      0,
+      _maxIndex,
+    );
 
-    widget.onTap?.call(index);
-    _animateTo(index);
+    _selectTab(index);
   }
 
   void _onDragStart(DragStartDetails details) {
@@ -280,15 +383,12 @@ class _CupertinoLiquidGlassBottomBarState
 
     _velocitySamples.clear();
     _velocity.value = 0.0;
+    // Latch the clock domain for this gesture on the first sample.
+    _useSourceTimeStamp = details.sourceTimeStamp != null;
 
-    _elasticController.animateWith(
-      SpringSimulation(
-        _elasticSpring,
-        _elasticController.value,
-        _expandedScale,
-        0.0,
-      ),
-    );
+    if (!_reduceMotion) {
+      _animateElasticTo(_expandedScale);
+    }
   }
 
   void _onDragUpdate(DragUpdateDetails details, double contentWidth) {
@@ -297,10 +397,13 @@ class _CupertinoLiquidGlassBottomBarState
     final delta = dx / tabWidth;
 
     // Track samples for smoothed velocity. Skip sub-pixel jitter so the
-    // stretch effect doesn't shimmer.
-    final now = details.sourceTimeStamp?.inMicroseconds ??
-        DateTime.now().microsecondsSinceEpoch;
-    if (dx.abs() >= _kVelocityJitterPx) {
+    // stretch effect doesn't shimmer. The clock domain latched at drag
+    // start is used for the whole gesture; events missing a timestamp in a
+    // sourceTimeStamp gesture are skipped rather than sampled off-clock.
+    final now = _useSourceTimeStamp
+        ? details.sourceTimeStamp?.inMicroseconds
+        : _dragClock.elapsedMicroseconds;
+    if (now != null && dx.abs() >= _kVelocityJitterPx) {
       _velocitySamples.add(_VelocitySample(now, delta));
       final cutoff = now - _kVelocityWindowMs * 1000;
       while (_velocitySamples.isNotEmpty &&
@@ -309,8 +412,10 @@ class _CupertinoLiquidGlassBottomBarState
       }
     }
 
-    _position.value =
-        (_position.value + delta).clamp(0.0, _maxIndex.toDouble());
+    _position.value = (_position.value + delta).clamp(
+      0.0,
+      _maxIndex.toDouble(),
+    );
 
     // Smoothed velocity (fractional-index per second).
     if (_velocitySamples.length >= 2) {
@@ -335,24 +440,18 @@ class _CupertinoLiquidGlassBottomBarState
 
     int target = _position.value.round();
     if (flingVelocity.abs() > 3.0) {
-      target = flingVelocity > 0 ? _position.value.ceil() : _position.value.floor();
+      target = flingVelocity > 0
+          ? _position.value.ceil()
+          : _position.value.floor();
     }
     target = target.clamp(0, _maxIndex);
 
     _velocitySamples.clear();
-    widget.onTap?.call(target);
 
     // Hand the gesture's momentum to the spring so motion continues smoothly.
-    _animateTo(target, initialVelocity: flingVelocity);
+    _selectTab(target, initialVelocity: flingVelocity);
 
-    _elasticController.animateWith(
-      SpringSimulation(
-        _elasticSpring,
-        _elasticController.value,
-        1.0,
-        0.0,
-      ),
-    );
+    _animateElasticTo(1.0);
   }
 
   void _onDragCancel() {
@@ -361,9 +460,7 @@ class _CupertinoLiquidGlassBottomBarState
     // Snap back to the nearest tab if the gesture was interrupted.
     final target = _position.value.round().clamp(0, _maxIndex);
     _animateTo(target);
-    _elasticController.animateWith(
-      SpringSimulation(_elasticSpring, _elasticController.value, 1.0, 0.0),
-    );
+    _animateElasticTo(1.0);
   }
 
   /// Safety net for cases where [onHorizontalDragEnd] is swallowed — a parent
@@ -398,22 +495,22 @@ class _CupertinoLiquidGlassBottomBarState
     // home-indicator zone (~34 pt), so the bar visually sits flush against
     // the system gesture line on Android. Add a tiny clearance there by
     // default. Users can override via [bottomSpacing].
-    final extra = widget.bottomSpacing ??
+    final extra =
+        widget.bottomSpacing ??
         (defaultTargetPlatform == TargetPlatform.android ? 6.0 : 0.0);
 
-    final bottomPadding =
-        widget.useSafeArea ? systemInset + extra : extra;
+    final bottomPadding = widget.useSafeArea ? systemInset + extra : extra;
 
     final brightness =
         CupertinoTheme.of(context).brightness ?? Brightness.light;
     final isDark = brightness == Brightness.dark;
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     final resolvedActive =
         widget.activeColor ?? CupertinoTheme.of(context).primaryColor;
-    final resolvedInactive = widget.inactiveColor ??
-        (isDark
-            ? CupertinoColors.systemGrey
-            : CupertinoColors.systemGrey2);
+    final resolvedInactive =
+        widget.inactiveColor ??
+        (isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2);
 
     // Main glass bar (without outer padding so rubber banding only affects it).
     Widget mainBar = CupertinoLiquidGlass(
@@ -433,41 +530,55 @@ class _CupertinoLiquidGlassBottomBarState
               onPointerUp: _onPointerRelease,
               onPointerCancel: _onPointerRelease,
               child: GestureDetector(
-              onTapUp: (d) => _onTapUp(d, contentWidth),
-              onHorizontalDragStart: _onDragStart,
-              onHorizontalDragUpdate: (d) => _onDragUpdate(d, contentWidth),
-              onHorizontalDragEnd: (d) => _onDragEnd(d, contentWidth),
-              onHorizontalDragCancel: _onDragCancel,
-              behavior: HitTestBehavior.opaque,
-              // RepaintBoundary isolates the selector + tab item repaints
-              // from the glass surface (noise, blur, edge light), which is
-              // expensive to rasterize and only needs to repaint once.
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: _SelectorPainter(
-                    position: _position,
-                    velocity: _velocity,
-                    tabCount: widget.items.length,
-                    activeColor: resolvedActive,
-                    selectorRadius: 16.0,
-                    isDark: isDark,
-                  ),
-                  child: Row(
-                    children: List.generate(widget.items.length, (i) {
-                      return Expanded(
-                        child: _TabItem(
-                          item: widget.items[i],
-                          index: i,
-                          position: _position,
-                          activeColor: resolvedActive,
-                          inactiveColor: resolvedInactive,
-                          isDark: isDark,
-                        ),
-                      );
-                    }),
+                onTapUp: (d) => _onTapUp(d, contentWidth),
+                onHorizontalDragStart: _onDragStart,
+                onHorizontalDragUpdate: (d) => _onDragUpdate(d, contentWidth),
+                onHorizontalDragEnd: (d) => _onDragEnd(d, contentWidth),
+                onHorizontalDragCancel: _onDragCancel,
+                behavior: HitTestBehavior.opaque,
+                // RepaintBoundary isolates the selector + tab item repaints
+                // from the glass surface (noise, blur, edge light), which is
+                // expensive to rasterize and only needs to repaint once.
+                child: RepaintBoundary(
+                  // Native iOS tab bars don't scale their labels with Dynamic
+                  // Type; clamping also prevents the fixed-height Column from
+                  // overflowing (clipped pixels) at accessibility text sizes.
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.0,
+                    child: CustomPaint(
+                      painter: _SelectorPainter(
+                        position: _position,
+                        velocity: _velocity,
+                        tabCount: widget.items.length,
+                        activeColor: resolvedActive,
+                        selectorRadius: 16.0,
+                        isDark: isDark,
+                      ),
+                      willChange: true,
+                      child: Row(
+                        children: List.generate(widget.items.length, (i) {
+                          return Expanded(
+                            child: Semantics(
+                              container: true,
+                              button: true,
+                              selected: i == widget.currentIndex,
+                              label: widget.items[i].label,
+                              hint: 'Tab ${i + 1} of ${widget.items.length}',
+                              onTap: () => _selectTab(i),
+                              child: _TabItem(
+                                item: widget.items[i],
+                                proximity: _proximities[i],
+                                activeColor: resolvedActive,
+                                inactiveColor: resolvedInactive,
+                                isDark: isDark,
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
                   ),
                 ),
-              ),
               ),
             );
           },
@@ -477,10 +588,14 @@ class _CupertinoLiquidGlassBottomBarState
 
     // Rubber banding (only the main strip, not the detached button).
     // AnimatedBuilder rebuilds only the Transform — `mainBar` stays cached.
+    // The near-1.0 snap matters: a spring settles within tolerance, not at
+    // exactly 1.0, and a lingering ~0.999 Transform would permanently
+    // resample the bar (soft text, shimmering hairlines).
     mainBar = AnimatedBuilder(
       animation: _elasticController,
       builder: (context, child) {
-        final scale = _elasticController.value;
+        final value = _elasticController.value;
+        final scale = (value - 1.0).abs() < 0.0015 ? 1.0 : value;
         if (scale == 1.0) return child!;
         return Transform.scale(
           scale: scale,
@@ -524,20 +639,19 @@ class _VelocitySample {
   const _VelocitySample(this.timeUs, this.delta);
 }
 
-/// Subscribes to the position notifier and rebuilds only its own subtree —
-/// keeps the gesture detector, glass surface, and painter out of the rebuild.
+/// Subscribes to its own quantized proximity notifier and rebuilds only its
+/// own subtree — tabs far from the selector never rebuild during transitions,
+/// and the gesture detector, glass surface, and painter stay out of it.
 class _TabItem extends StatelessWidget {
   final LiquidGlassBottomBarItem item;
-  final int index;
-  final ValueListenable<double> position;
+  final ValueListenable<double> proximity;
   final Color activeColor;
   final Color inactiveColor;
   final bool isDark;
 
   const _TabItem({
     required this.item,
-    required this.index,
-    required this.position,
+    required this.proximity,
     required this.activeColor,
     required this.inactiveColor,
     required this.isDark,
@@ -547,20 +661,20 @@ class _TabItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: _kMinHitTarget,
-      child: ListenableBuilder(
-        listenable: position,
-        builder: (context, _) {
-          final proximity =
-              (1.0 - (position.value - index).abs()).clamp(0.0, 1.0);
+      child: ValueListenableBuilder<double>(
+        valueListenable: proximity,
+        builder: (context, proximity, _) {
           final color = Color.lerp(inactiveColor, activeColor, proximity)!;
           final iconData = proximity > 0.5
               ? (item.activeIcon ?? item.icon)
               : item.icon;
-          final fontWeight = FontWeight.lerp(
-            FontWeight.w400,
-            FontWeight.w600,
-            proximity,
-          )!;
+          // A single discrete weight switch at the icon-swap threshold.
+          // Interpolating FontWeight per frame snaps through discrete
+          // weights (w400 -> w500 -> w600), forcing a full text relayout
+          // every frame and making labels visibly jitter in width.
+          final fontWeight = proximity > 0.5
+              ? FontWeight.w600
+              : FontWeight.w400;
           // Dock-style magnification.
           final iconScale = 1.0 + proximity * 0.18;
 
@@ -652,23 +766,41 @@ class _GlassIconPainter extends CustomPainter {
     final center = Offset(canvasSize.width / 2, canvasSize.height / 2);
     final radius = size * 0.55;
 
+    // Radial-gradient glows instead of MaskFilter.blur: a mask blur is a
+    // full offscreen Gaussian pass per draw, and with intensity animating
+    // every frame during the selector slide those passes stack up across
+    // tabs. A gradient reads visually identical for a soft halo and renders
+    // in a single pass.
+
     // Outer colored glow.
+    final glowRadius = radius * (1.0 + intensity * 0.3) + 7.0 + intensity * 3.0;
     canvas.drawCircle(
       center,
-      radius * (1.0 + intensity * 0.3),
+      glowRadius,
       Paint()
-        ..color = activeColor.withValues(alpha: intensity * 0.16)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 7.0 + intensity * 3.0),
+        ..shader = ui.Gradient.radial(
+          center,
+          glowRadius,
+          <Color>[
+            activeColor.withValues(alpha: intensity * 0.16),
+            activeColor.withValues(alpha: intensity * 0.10),
+            activeColor.withValues(alpha: 0.0),
+          ],
+          <double>[0.0, 0.55, 1.0],
+        ),
     );
 
     // Inner glass highlight — bright specular dot.
+    final dotCenter = center.translate(0, -radius * 0.15);
+    final dotRadius = radius * 0.5 * intensity + 4.0 + intensity * 2.0;
     canvas.drawCircle(
-      center.translate(0, -radius * 0.15),
-      radius * 0.5 * intensity,
+      dotCenter,
+      dotRadius,
       Paint()
-        ..color = const Color.fromRGBO(255, 255, 255, 1.0)
-            .withValues(alpha: intensity * 0.12)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4.0 + intensity * 2.0),
+        ..shader = ui.Gradient.radial(dotCenter, dotRadius, <Color>[
+          const Color(0xFFFFFFFF).withValues(alpha: intensity * 0.12),
+          const Color(0xFFFFFFFF).withValues(alpha: 0.0),
+        ]),
     );
   }
 
@@ -700,6 +832,20 @@ class _SelectorPainter extends CustomPainter {
     required this.isDark,
   }) : super(repaint: Listenable.merge([position, velocity]));
 
+  /// Cached fill paint (constant per painter instance).
+  late final Paint _fillPaint = Paint()
+    ..color = isDark
+        ? const Color.fromRGBO(255, 255, 255, 0.09)
+        : const Color.fromRGBO(0, 0, 0, 0.05);
+
+  /// Cached highlight stroke paint; its vertical gradient shader depends
+  /// only on the pill height, so it is (re)built lazily per height instead
+  /// of allocating a gradient + engine shader on every frame.
+  final Paint _highlightPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 0.5;
+  double _highlightShaderHeight = -1.0;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (tabCount == 0) return;
@@ -714,50 +860,56 @@ class _SelectorPainter extends CustomPainter {
     final stretch = 1.0 + absVel / 55.0; // max ~1.36x
 
     final baseWidth = tabWidth * 0.82;
-    final selectorWidth = baseWidth * stretch;
-    final x = pos * tabWidth + (tabWidth - selectorWidth) / 2;
+    final selectorWidth = (baseWidth * stretch).clamp(0.0, size.width - 4.0);
+    // Keep the stretched pill inside the bar: at the edge tabs a fast fling
+    // would otherwise push it under the rounded clip and slice it off flat.
+    final unclampedX = pos * tabWidth + (tabWidth - selectorWidth) / 2;
+    final maxX = size.width - selectorWidth - 2.0;
+    final x = unclampedX.clamp(2.0, maxX < 2.0 ? 2.0 : maxX);
 
     final rrect = RRect.fromRectAndRadius(
       Rect.fromLTWH(x, 2.0, selectorWidth, size.height - 4.0),
       Radius.circular(selectorRadius),
     );
 
-    // 1. Bloom glow — soft colored halo behind the selector.
+    // 1. Bloom glow — soft colored halo behind the selector, painted as
+    //    concentric translucent fills. A MaskFilter Gaussian here would be
+    //    an offscreen blur pass on every animation frame.
     canvas.drawRRect(
-      rrect.inflate(3.0),
-      Paint()
-        ..color = activeColor.withValues(alpha: 0.13)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0),
+      rrect.inflate(7.0),
+      Paint()..color = activeColor.withValues(alpha: 0.025),
+    );
+    canvas.drawRRect(
+      rrect.inflate(4.5),
+      Paint()..color = activeColor.withValues(alpha: 0.045),
+    );
+    canvas.drawRRect(
+      rrect.inflate(2.0),
+      Paint()..color = activeColor.withValues(alpha: 0.06),
     );
 
     // 2. Fill — subtle translucent pill.
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..color = isDark
-            ? const Color.fromRGBO(255, 255, 255, 0.09)
-            : const Color.fromRGBO(0, 0, 0, 0.05),
-    );
+    canvas.drawRRect(rrect, _fillPaint);
 
-    // 3. Inner highlight — a faint top edge for depth.
-    canvas.drawRRect(
-      rrect.deflate(0.25),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.5
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            isDark
-                ? const Color.fromRGBO(255, 255, 255, 0.18)
-                : const Color.fromRGBO(255, 255, 255, 0.40),
-            isDark
-                ? const Color.fromRGBO(255, 255, 255, 0.04)
-                : const Color.fromRGBO(0, 0, 0, 0.03),
-          ],
-        ).createShader(rrect.outerRect),
-    );
+    // 3. Inner highlight — a faint top edge for depth. The gradient is
+    //    vertical, so the shader only depends on the pill height: build it
+    //    once and translate the canvas horizontally instead.
+    if (_highlightShaderHeight != size.height) {
+      _highlightShaderHeight = size.height;
+      _highlightPaint.shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          isDark
+              ? const Color.fromRGBO(255, 255, 255, 0.18)
+              : const Color.fromRGBO(255, 255, 255, 0.40),
+          isDark
+              ? const Color.fromRGBO(255, 255, 255, 0.04)
+              : const Color.fromRGBO(0, 0, 0, 0.03),
+        ],
+      ).createShader(Rect.fromLTWH(0.0, 2.0, 1.0, size.height - 4.0));
+    }
+    canvas.drawRRect(rrect.deflate(0.25), _highlightPaint);
   }
 
   @override

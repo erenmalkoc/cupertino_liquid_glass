@@ -39,6 +39,54 @@ void main() {
       final mid = LiquidGlassThemeData.lerp(a, b, 0.5);
       expect(mid.blurSigma, closeTo(26.5, 0.1));
     });
+
+    test('implements value equality and hashCode', () {
+      const a = LiquidGlassThemeData(blurSigma: 10.0);
+      const b = LiquidGlassThemeData(blurSigma: 10.0);
+      const c = LiquidGlassThemeData(blurSigma: 12.0);
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+      expect(a, isNot(equals(c)));
+      expect(
+        LiquidGlassThemeData.light(),
+        equals(LiquidGlassThemeData.light()),
+      );
+      expect(
+        LiquidGlassThemeData.light(),
+        isNot(equals(LiquidGlassThemeData.dark())),
+      );
+    });
+
+    test('light/dark factories return canonical instances', () {
+      // Painter shouldRepaint short-circuits rely on this staying true.
+      expect(
+        identical(LiquidGlassThemeData.light(), LiquidGlassThemeData.light()),
+        isTrue,
+      );
+      expect(
+        identical(LiquidGlassThemeData.dark(), LiquidGlassThemeData.dark()),
+        isTrue,
+      );
+    });
+
+    test('copyWith with no arguments returns the same instance', () {
+      final theme = LiquidGlassThemeData.light();
+      expect(identical(theme.copyWith(), theme), isTrue);
+    });
+
+    test('lerp short-circuits at the endpoints', () {
+      final a = LiquidGlassThemeData.light();
+      final b = LiquidGlassThemeData.dark();
+      expect(identical(LiquidGlassThemeData.lerp(a, b, 0.0), a), isTrue);
+      expect(identical(LiquidGlassThemeData.lerp(a, b, 1.0), b), isTrue);
+      expect(identical(LiquidGlassThemeData.lerp(a, a, 0.5), a), isTrue);
+    });
+
+    test('lerp preserves null shadows', () {
+      const a = LiquidGlassThemeData();
+      const b = LiquidGlassThemeData(blurSigma: 40.0);
+      expect(LiquidGlassThemeData.lerp(a, b, 0.5).shadows, isNull);
+    });
   });
 
   group('CupertinoLiquidGlass', () {
@@ -97,9 +145,7 @@ void main() {
         const CupertinoApp(
           home: CupertinoPageScaffold(
             child: Column(
-              children: [
-                CupertinoLiquidGlassNavBar(title: Text('Nav Title')),
-              ],
+              children: [CupertinoLiquidGlassNavBar(title: Text('Nav Title'))],
             ),
           ),
         ),

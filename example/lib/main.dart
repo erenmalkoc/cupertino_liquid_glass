@@ -78,7 +78,18 @@ class _HomePageState extends State<_HomePage> {
     return CupertinoPageScaffold(
       child: Stack(
         children: [
-          pages[_tab],
+          // Single shared background painted once behind every tab.
+          const Positioned.fill(child: _ColorfulBackground()),
+
+          // IndexedStack keeps each tab's state (scroll offsets, sliders)
+          // alive and avoids re-rasterizing an entire page mid tab
+          // transition. BackdropGroup lets all glass cards inside share one
+          // backdrop readback per frame instead of one per BackdropFilter.
+          Positioned.fill(
+            child: BackdropGroup(
+              child: IndexedStack(index: _tab, children: pages),
+            ),
+          ),
 
           // Floating nav bar with detachedButton
           Positioned(
@@ -158,135 +169,127 @@ class _GalleryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
+    final top = MediaQuery.paddingOf(context).top;
 
-    return Stack(
+    return ListView(
+      padding: EdgeInsets.only(top: top + 72, bottom: 130, left: 16, right: 16),
       children: [
-        const Positioned.fill(child: _ColorfulBackground()),
-        ListView(
-          padding: EdgeInsets.only(
-            top: top + 72,
-            bottom: 130,
-            left: 16,
-            right: 16,
+        // Default
+        const _SectionLabel('Default'),
+        const SizedBox(height: 8),
+        const CupertinoLiquidGlass(
+          padding: EdgeInsets.all(20),
+          child: _CardBody(
+            title: 'CupertinoLiquidGlass',
+            subtitle: 'Auto light / dark • specular highlight • edge lighting',
           ),
-          children: [
-            // Default
-            const _SectionLabel('Default'),
-            const SizedBox(height: 8),
-            const CupertinoLiquidGlass(
-              padding: EdgeInsets.all(20),
-              child: _CardBody(
-                title: 'CupertinoLiquidGlass',
-                subtitle:
-                    'Auto light / dark • specular highlight • edge lighting',
-              ),
-            ),
+        ),
 
-            // Blur intensity
-            const SizedBox(height: 20),
-            const _SectionLabel('Blur Intensity'),
-            const SizedBox(height: 8),
-            const CupertinoLiquidGlass(
-              blurSigma: 45,
-              padding: EdgeInsets.all(20),
-              child: _CardBody(
-                title: 'Thick Frost  —  blurSigma: 45',
-                subtitle: 'Strong backdrop diffusion',
-              ),
-            ),
-            const SizedBox(height: 10),
-            const CupertinoLiquidGlass(
-              blurSigma: 6,
-              tintOpacity: 0.15,
-              padding: EdgeInsets.all(20),
-              child: _CardBody(
-                title: 'Thin Glass  —  blurSigma: 6',
-                subtitle: 'Background clearly visible through',
-              ),
-            ),
+        // Blur intensity
+        const SizedBox(height: 20),
+        const _SectionLabel('Blur Intensity'),
+        const SizedBox(height: 8),
+        const CupertinoLiquidGlass(
+          blurSigma: 45,
+          padding: EdgeInsets.all(20),
+          child: _CardBody(
+            title: 'Thick Frost  —  blurSigma: 45',
+            subtitle: 'Strong backdrop diffusion',
+          ),
+        ),
+        const SizedBox(height: 10),
+        const CupertinoLiquidGlass(
+          blurSigma: 6,
+          tintOpacity: 0.15,
+          padding: EdgeInsets.all(20),
+          child: _CardBody(
+            title: 'Thin Glass  —  blurSigma: 6',
+            subtitle: 'Background clearly visible through',
+          ),
+        ),
 
-            // Custom theme
-            const SizedBox(height: 20),
-            const _SectionLabel('Custom LiquidGlassThemeData'),
-            const SizedBox(height: 8),
-            CupertinoLiquidGlass(
-              theme: const LiquidGlassThemeData(
-                tintColor: Color(0xFF007AFF),
-                tintOpacity: 0.20,
-                blurSigma: 22,
-                borderRadius: BorderRadius.all(Radius.circular(20)),
-              ),
-              padding: const EdgeInsets.all(20),
-              child: const _CardBody(
-                title: 'Blue Tint',
-                subtitle: 'tintColor • custom blurSigma • custom radius',
-              ),
-            ),
+        // Custom theme
+        const SizedBox(height: 20),
+        const _SectionLabel('Custom LiquidGlassThemeData'),
+        const SizedBox(height: 8),
+        CupertinoLiquidGlass(
+          theme: const LiquidGlassThemeData(
+            tintColor: Color(0xFF007AFF),
+            tintOpacity: 0.20,
+            blurSigma: 22,
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: const _CardBody(
+            title: 'Blue Tint',
+            subtitle: 'tintColor • custom blurSigma • custom radius',
+          ),
+        ),
 
-            // Glow
-            const SizedBox(height: 20),
-            const _SectionLabel('Glow Effect'),
-            const SizedBox(height: 8),
-            CupertinoLiquidGlass(
-              glowColor: CupertinoColors.systemPurple,
-              glowRadius: 30,
-              padding: const EdgeInsets.all(20),
-              child: const _CardBody(
-                title: 'Purple Glow',
-                subtitle: 'glowColor + glowRadius — bloom around the surface',
+        // Glow
+        const SizedBox(height: 20),
+        const _SectionLabel('Glow Effect'),
+        const SizedBox(height: 8),
+        CupertinoLiquidGlass(
+          glowColor: CupertinoColors.systemPurple,
+          glowRadius: 30,
+          padding: const EdgeInsets.all(20),
+          child: const _CardBody(
+            title: 'Purple Glow',
+            subtitle: 'glowColor + glowRadius — bloom around the surface',
+          ),
+        ),
+
+        // LiquidGlassBloom
+        const SizedBox(height: 20),
+        const _SectionLabel('LiquidGlassBloom'),
+        const SizedBox(height: 8),
+        CupertinoLiquidGlass(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: const [
+              _BloomIcon(Color(0xFFFF3B30), CupertinoIcons.heart_fill, 'Heart'),
+              _BloomIcon(
+                Color(0xFF34C759),
+                CupertinoIcons.checkmark_circle_fill,
+                'Check',
               ),
-            ),
+              _BloomIcon(Color(0xFF007AFF), CupertinoIcons.bolt_fill, 'Bolt'),
+              _BloomIcon(Color(0xFFAF52DE), CupertinoIcons.star_fill, 'Star'),
+            ],
+          ),
+        ),
 
-            // LiquidGlassBloom
-            const SizedBox(height: 20),
-            const _SectionLabel('LiquidGlassBloom'),
-            const SizedBox(height: 8),
-            CupertinoLiquidGlass(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: const [
-                  _BloomIcon(Color(0xFFFF3B30), CupertinoIcons.heart_fill, 'Heart'),
-                  _BloomIcon(Color(0xFF34C759), CupertinoIcons.checkmark_circle_fill, 'Check'),
-                  _BloomIcon(Color(0xFF007AFF), CupertinoIcons.bolt_fill, 'Bolt'),
-                  _BloomIcon(Color(0xFFAF52DE), CupertinoIcons.star_fill, 'Star'),
-                ],
-              ),
+        // Detached button
+        const SizedBox(height: 20),
+        const _SectionLabel('LiquidGlassDetachedButton'),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: const [
+            _DetachedDemo(
+              iridescent: true,
+              icon: CupertinoIcons.camera_fill,
+              color: Color(0xFF007AFF),
+              label: 'iridescent',
             ),
-
-            // Detached button
-            const SizedBox(height: 20),
-            const _SectionLabel('LiquidGlassDetachedButton'),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: const [
-                _DetachedDemo(
-                  iridescent: true,
-                  icon: CupertinoIcons.camera_fill,
-                  color: Color(0xFF007AFF),
-                  label: 'iridescent',
-                ),
-                _DetachedDemo(
-                  iridescent: false,
-                  icon: CupertinoIcons.mic_fill,
-                  color: Color(0xFF34C759),
-                  label: 'plain',
-                ),
-                _DetachedDemo(
-                  iridescent: true,
-                  icon: CupertinoIcons.music_note,
-                  color: Color(0xFFFF2D55),
-                  label: 'iridescent',
-                ),
-              ],
+            _DetachedDemo(
+              iridescent: false,
+              icon: CupertinoIcons.mic_fill,
+              color: Color(0xFF34C759),
+              label: 'plain',
             ),
-
-            const SizedBox(height: 8),
+            _DetachedDemo(
+              iridescent: true,
+              icon: CupertinoIcons.music_note,
+              color: Color(0xFFFF2D55),
+              label: 'iridescent',
+            ),
           ],
         ),
+
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -308,152 +311,136 @@ class _EffectsPageState extends State<_EffectsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
+    final top = MediaQuery.paddingOf(context).top;
     final lerped = LiquidGlassThemeData.lerp(
       LiquidGlassThemeData.light(),
       LiquidGlassThemeData.dark(),
       _lerpT,
     );
 
-    return Stack(
+    return ListView(
+      padding: EdgeInsets.only(top: top + 72, bottom: 130, left: 16, right: 16),
       children: [
-        const Positioned.fill(child: _ColorfulBackground()),
-        ListView(
-          padding: EdgeInsets.only(
-            top: top + 72,
-            bottom: 130,
-            left: 16,
-            right: 16,
-          ),
-          children: [
-            // Theme lerp
-            const _SectionLabel('LiquidGlassThemeData.lerp()'),
-            const SizedBox(height: 8),
-            CupertinoLiquidGlass(
-              theme: lerped,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        // Theme lerp
+        const _SectionLabel('LiquidGlassThemeData.lerp()'),
+        const SizedBox(height: 8),
+        CupertinoLiquidGlass(
+          theme: lerped,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'Light',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13),
-                      ),
-                      Expanded(
-                        child: CupertinoSlider(
-                          value: _lerpT,
-                          onChanged: (v) => setState(() => _lerpT = v),
-                        ),
-                      ),
-                      const Text(
-                        'Dark',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13),
-                      ),
-                    ],
+                  const Text(
+                    'Light',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'blurSigma: ${lerped.blurSigma.toStringAsFixed(1)}   '
-                    'tintOpacity: ${lerped.tintOpacity.toStringAsFixed(2)}   '
-                    't = ${_lerpT.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontFamily: 'Menlo',
-                      color: CupertinoColors.systemGrey,
+                  Expanded(
+                    child: CupertinoSlider(
+                      value: _lerpT,
+                      onChanged: (v) => setState(() => _lerpT = v),
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            // Bloom intensity comparison
-            const SizedBox(height: 20),
-            const _SectionLabel('LiquidGlassBloom — intensity'),
-            const SizedBox(height: 8),
-            CupertinoLiquidGlass(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: const [
-                  _IntensityBloom(
-                    color: Color(0xFFFF3B30),
-                    icon: CupertinoIcons.heart_fill,
-                    intensity: 0.25,
-                    label: '25 %',
-                  ),
-                  _IntensityBloom(
-                    color: Color(0xFFFF9500),
-                    icon: CupertinoIcons.star,
-                    intensity: 0.50,
-                    label: '50 %',
-                  ),
-                  _IntensityBloom(
-                    color: Color(0xFF007AFF),
-                    icon: CupertinoIcons.bolt_fill,
-                    intensity: 0.75,
-                    label: '75 %',
-                  ),
-                  _IntensityBloom(
-                    color: Color(0xFFAF52DE),
-                    icon: CupertinoIcons.star_fill,
-                    intensity: 1.00,
-                    label: '100 %',
+                  const Text(
+                    'Dark',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 6),
+              Text(
+                'blurSigma: ${lerped.blurSigma.toStringAsFixed(1)}   '
+                'tintOpacity: ${lerped.tintOpacity.toStringAsFixed(2)}   '
+                't = ${_lerpT.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'Menlo',
+                  color: CupertinoColors.systemGrey,
+                ),
+              ),
+            ],
+          ),
+        ),
 
-            // Detached button iridescent comparison
-            const SizedBox(height: 20),
-            const _SectionLabel('Detached Button — iridescent vs plain'),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        // Bloom intensity comparison
+        const SizedBox(height: 20),
+        const _SectionLabel('LiquidGlassBloom — intensity'),
+        const SizedBox(height: 8),
+        CupertinoLiquidGlass(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: const [
+              _IntensityBloom(
+                color: Color(0xFFFF3B30),
+                icon: CupertinoIcons.heart_fill,
+                intensity: 0.25,
+                label: '25 %',
+              ),
+              _IntensityBloom(
+                color: Color(0xFFFF9500),
+                icon: CupertinoIcons.star,
+                intensity: 0.50,
+                label: '50 %',
+              ),
+              _IntensityBloom(
+                color: Color(0xFF007AFF),
+                icon: CupertinoIcons.bolt_fill,
+                intensity: 0.75,
+                label: '75 %',
+              ),
+              _IntensityBloom(
+                color: Color(0xFFAF52DE),
+                icon: CupertinoIcons.star_fill,
+                intensity: 1.00,
+                label: '100 %',
+              ),
+            ],
+          ),
+        ),
+
+        // Detached button iridescent comparison
+        const SizedBox(height: 20),
+        const _SectionLabel('Detached Button — iridescent vs plain'),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    LiquidGlassDetachedButton(
-                      onTap: () {},
-                      iridescent: true,
-                      child: const Icon(
-                        CupertinoIcons.camera_fill,
-                        color: CupertinoColors.activeBlue,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('iridescent: true',
-                        style: TextStyle(fontSize: 12)),
-                  ],
+                LiquidGlassDetachedButton(
+                  onTap: () {},
+                  iridescent: true,
+                  child: const Icon(
+                    CupertinoIcons.camera_fill,
+                    color: CupertinoColors.activeBlue,
+                  ),
                 ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    LiquidGlassDetachedButton(
-                      onTap: () {},
-                      iridescent: false,
-                      child: const Icon(
-                        CupertinoIcons.camera_fill,
-                        color: CupertinoColors.activeBlue,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('iridescent: false',
-                        style: TextStyle(fontSize: 12)),
-                  ],
-                ),
+                const SizedBox(height: 8),
+                const Text('iridescent: true', style: TextStyle(fontSize: 12)),
               ],
             ),
-
-            const SizedBox(height: 8),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LiquidGlassDetachedButton(
+                  onTap: () {},
+                  iridescent: false,
+                  child: const Icon(
+                    CupertinoIcons.camera_fill,
+                    color: CupertinoColors.activeBlue,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text('iridescent: false', style: TextStyle(fontSize: 12)),
+              ],
+            ),
           ],
         ),
+
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -478,80 +465,68 @@ class _ThemePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
+    final top = MediaQuery.paddingOf(context).top;
 
-    return Stack(
+    return ListView(
+      padding: EdgeInsets.only(top: top + 72, bottom: 130, left: 16, right: 16),
       children: [
-        const Positioned.fill(child: _ColorfulBackground()),
-        ListView(
-          padding: EdgeInsets.only(
-            top: top + 72,
-            bottom: 130,
-            left: 16,
-            right: 16,
+        // Dark mode + Glass Effect toggles
+        CupertinoLiquidGlass(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Column(
+            children: [
+              _ToggleRow(
+                label: 'Dark Mode',
+                value: isDark,
+                onChanged: (_) => onToggle(),
+              ),
+              Container(
+                height: 0.5,
+                color: CupertinoColors.separator.resolveFrom(context),
+              ),
+              _ToggleRow(
+                label: 'Glass Effect',
+                value: enableGlass,
+                onChanged: (_) => onGlassToggle(),
+              ),
+            ],
           ),
-          children: [
-            // Dark mode + Glass Effect toggles
-            CupertinoLiquidGlass(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 8),
-              child: Column(
-                children: [
-                  _ToggleRow(
-                    label: 'Dark Mode',
-                    value: isDark,
-                    onChanged: (_) => onToggle(),
-                  ),
-                  Container(
-                    height: 0.5,
-                    color: CupertinoColors.separator.resolveFrom(context),
-                  ),
-                  _ToggleRow(
-                    label: 'Glass Effect',
-                    value: enableGlass,
-                    onChanged: (_) => onGlassToggle(),
-                  ),
-                ],
-              ),
-            ),
-
-            // Light preset
-            const SizedBox(height: 20),
-            const _SectionLabel('Light Preset'),
-            const SizedBox(height: 8),
-            _ThemeCard(theme: LiquidGlassThemeData.light()),
-
-            // Dark preset
-            const SizedBox(height: 20),
-            const _SectionLabel('Dark Preset'),
-            const SizedBox(height: 8),
-            _ThemeCard(theme: LiquidGlassThemeData.dark()),
-
-            // Custom
-            const SizedBox(height: 20),
-            const _SectionLabel('Custom Theme Example'),
-            const SizedBox(height: 8),
-            CupertinoLiquidGlass(
-              theme: const LiquidGlassThemeData(
-                tintColor: Color(0xFF00C7BE),
-                tintOpacity: 0.18,
-                blurSigma: 35,
-                borderRadius: BorderRadius.all(Radius.circular(28)),
-                borderWidth: 1.5,
-                edgeLightColor: Color(0x80FFFFFF),
-                innerShadowBlurRadius: 6,
-              ),
-              padding: const EdgeInsets.all(20),
-              child: const _CardBody(
-                title: 'Teal Custom Theme',
-                subtitle:
-                    'tintColor teal • blurSigma 35 • borderWidth 1.5',
-              ),
-            ),
-
-            const SizedBox(height: 8),
-          ],
         ),
+
+        // Light preset
+        const SizedBox(height: 20),
+        const _SectionLabel('Light Preset'),
+        const SizedBox(height: 8),
+        _ThemeCard(theme: LiquidGlassThemeData.light()),
+
+        // Dark preset
+        const SizedBox(height: 20),
+        const _SectionLabel('Dark Preset'),
+        const SizedBox(height: 8),
+        _ThemeCard(theme: LiquidGlassThemeData.dark()),
+
+        // Custom
+        const SizedBox(height: 20),
+        const _SectionLabel('Custom Theme Example'),
+        const SizedBox(height: 8),
+        CupertinoLiquidGlass(
+          theme: const LiquidGlassThemeData(
+            tintColor: Color(0xFF00C7BE),
+            tintOpacity: 0.18,
+            blurSigma: 35,
+            borderRadius: BorderRadius.all(Radius.circular(28)),
+            borderWidth: 1.5,
+            edgeLightColor: Color(0x80FFFFFF),
+            innerShadowBlurRadius: 6,
+          ),
+          padding: const EdgeInsets.all(20),
+          child: const _CardBody(
+            title: 'Teal Custom Theme',
+            subtitle: 'tintColor teal • blurSigma 35 • borderWidth 1.5',
+          ),
+        ),
+
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -570,9 +545,7 @@ class _ColorfulBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    return CustomPaint(
-      painter: _BlobPainter(isDark: isDark),
-    );
+    return CustomPaint(painter: _BlobPainter(isDark: isDark));
   }
 }
 
@@ -586,8 +559,7 @@ class _BlobPainter extends CustomPainter {
     canvas.drawRect(
       Offset.zero & size,
       Paint()
-        ..color =
-            isDark ? const Color(0xFF0C0C14) : const Color(0xFFF0F0F5),
+        ..color = isDark ? const Color(0xFF0C0C14) : const Color(0xFFF0F0F5),
     );
 
     final blobs = isDark ? _dark : _light;
@@ -674,7 +646,9 @@ class _CardBody extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 16),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -800,10 +774,14 @@ class _ThemeCard extends StatelessWidget {
           _ThemeRow('tintOpacity', theme.tintOpacity.toStringAsFixed(2)),
           _ThemeRow('borderWidth', theme.borderWidth.toStringAsFixed(2)),
           _ThemeRow('noiseOpacity', theme.noiseOpacity.toStringAsFixed(3)),
-          _ThemeRow('vibrancyIntensity',
-              theme.vibrancyIntensity.toStringAsFixed(2)),
-          _ThemeRow('innerShadowBlurRadius',
-              theme.innerShadowBlurRadius.toStringAsFixed(1)),
+          _ThemeRow(
+            'vibrancyIntensity',
+            theme.vibrancyIntensity.toStringAsFixed(2),
+          ),
+          _ThemeRow(
+            'innerShadowBlurRadius',
+            theme.innerShadowBlurRadius.toStringAsFixed(1),
+          ),
         ],
       ),
     );
@@ -831,10 +809,7 @@ class _ToggleRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 17,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
           ),
           CupertinoSwitch(value: value, onChanged: onChanged),
         ],

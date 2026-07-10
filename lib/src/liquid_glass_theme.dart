@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
 /// Theme configuration for [CupertinoLiquidGlass] and related widgets.
 ///
@@ -76,13 +77,14 @@ class LiquidGlassThemeData {
   /// values are 0.02–0.04.
   final double noiseOpacity;
 
-  /// The intensity of the vibrancy / saturation boost applied over the
+  /// The intensity of the vibrancy / saturation boost applied to the
   /// blurred backdrop (0.0–1.0).
   ///
   /// Simulates Apple's vibrancy effect where the blurred background colors
-  /// are perceptually boosted before the tint is applied. A subtle overlay
-  /// with [BlendMode.overlay] is used to increase perceived contrast and
-  /// saturation of the backdrop.
+  /// are perceptually boosted before the tint is applied. Implemented as a
+  /// saturation [ColorFilter] composed into the backdrop blur pass —
+  /// matching UIKit's saturate-then-blur material recipe with no extra
+  /// blend layer cost.
   final double vibrancyIntensity;
 
   /// An optional shadow cast beneath the glass surface for depth.
@@ -110,80 +112,78 @@ class LiquidGlassThemeData {
   ///
   /// Produces a bright, matte glass surface with edge lighting, subtle inner
   /// shadow, noise grain, and a soft specular highlight across the top edge.
-  factory LiquidGlassThemeData.light() {
-    return LiquidGlassThemeData(
-      blurSigma: 25.0,
-      tintColor: CupertinoColors.white,
-      tintOpacity: 0.65,
-      borderRadius: const BorderRadius.all(Radius.circular(20.0)),
-      edgeLightColor: const Color(0x60FFFFFF),
-      edgeShadowColor: const Color(0x08000000),
-      borderWidth: 0.75,
-      specularGradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0x40FFFFFF),
-          Color(0x10FFFFFF),
-          Color(0x00FFFFFF),
-        ],
-        stops: [0.0, 0.4, 1.0],
-      ),
-      specularOpacity: 0.30,
-      innerShadowColor: const Color(0x18000000),
-      innerShadowBlurRadius: 3.0,
-      noiseOpacity: 0.02,
-      vibrancyIntensity: 0.10,
-      shadows: const [
-        BoxShadow(
-          color: Color(0x1A000000),
-          blurRadius: 24.0,
-          spreadRadius: 0.0,
-          offset: Offset(0, 8),
-        ),
-      ],
-    );
-  }
+  ///
+  /// Returns a canonical const instance, so repeated calls are `identical`
+  /// and painter `shouldRepaint` checks short-circuit across rebuilds.
+  factory LiquidGlassThemeData.light() => _lightPreset;
 
   /// A dark-mode preset that matches iOS `UIBlurEffect.systemMaterialDark`.
   ///
   /// Produces a deep, contrasty glass surface with stronger edge lighting,
   /// pronounced inner shadow, and enhanced vibrancy for legibility against
   /// dark backgrounds.
-  factory LiquidGlassThemeData.dark() {
-    return LiquidGlassThemeData(
-      blurSigma: 28.0,
-      tintColor: const Color(0xFF1C1C1E),
-      tintOpacity: 0.55,
-      borderRadius: const BorderRadius.all(Radius.circular(20.0)),
-      edgeLightColor: const Color(0x40FFFFFF),
-      edgeShadowColor: const Color(0x20000000),
-      borderWidth: 0.75,
-      specularGradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0x35FFFFFF),
-          Color(0x0CFFFFFF),
-          Color(0x00FFFFFF),
-        ],
-        stops: [0.0, 0.35, 1.0],
+  ///
+  /// Returns a canonical const instance, so repeated calls are `identical`
+  /// and painter `shouldRepaint` checks short-circuit across rebuilds.
+  factory LiquidGlassThemeData.dark() => _darkPreset;
+
+  static const LiquidGlassThemeData _lightPreset = LiquidGlassThemeData(
+    blurSigma: 25.0,
+    tintColor: CupertinoColors.white,
+    tintOpacity: 0.65,
+    borderRadius: BorderRadius.all(Radius.circular(20.0)),
+    edgeLightColor: Color(0x60FFFFFF),
+    edgeShadowColor: Color(0x08000000),
+    borderWidth: 0.75,
+    specularGradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0x40FFFFFF), Color(0x10FFFFFF), Color(0x00FFFFFF)],
+      stops: [0.0, 0.4, 1.0],
+    ),
+    specularOpacity: 0.30,
+    innerShadowColor: Color(0x18000000),
+    innerShadowBlurRadius: 3.0,
+    noiseOpacity: 0.02,
+    vibrancyIntensity: 0.10,
+    shadows: [
+      BoxShadow(
+        color: Color(0x1A000000),
+        blurRadius: 24.0,
+        spreadRadius: 0.0,
+        offset: Offset(0, 8),
       ),
-      specularOpacity: 0.22,
-      innerShadowColor: const Color(0x30000000),
-      innerShadowBlurRadius: 5.0,
-      noiseOpacity: 0.03,
-      vibrancyIntensity: 0.15,
-      shadows: const [
-        BoxShadow(
-          color: Color(0x50000000),
-          blurRadius: 32.0,
-          spreadRadius: 0.0,
-          offset: Offset(0, 10),
-        ),
-      ],
-    );
-  }
+    ],
+  );
+
+  static const LiquidGlassThemeData _darkPreset = LiquidGlassThemeData(
+    blurSigma: 28.0,
+    tintColor: Color(0xFF1C1C1E),
+    tintOpacity: 0.55,
+    borderRadius: BorderRadius.all(Radius.circular(20.0)),
+    edgeLightColor: Color(0x40FFFFFF),
+    edgeShadowColor: Color(0x20000000),
+    borderWidth: 0.75,
+    specularGradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0x35FFFFFF), Color(0x0CFFFFFF), Color(0x00FFFFFF)],
+      stops: [0.0, 0.35, 1.0],
+    ),
+    specularOpacity: 0.22,
+    innerShadowColor: Color(0x30000000),
+    innerShadowBlurRadius: 5.0,
+    noiseOpacity: 0.03,
+    vibrancyIntensity: 0.15,
+    shadows: [
+      BoxShadow(
+        color: Color(0x50000000),
+        blurRadius: 32.0,
+        spreadRadius: 0.0,
+        offset: Offset(0, 10),
+      ),
+    ],
+  );
 
   /// Returns a copy of this theme with the given fields replaced.
   LiquidGlassThemeData copyWith({
@@ -202,6 +202,22 @@ class LiquidGlassThemeData {
     double? vibrancyIntensity,
     List<BoxShadow>? shadows,
   }) {
+    if (blurSigma == null &&
+        tintColor == null &&
+        tintOpacity == null &&
+        borderRadius == null &&
+        edgeLightColor == null &&
+        edgeShadowColor == null &&
+        borderWidth == null &&
+        specularGradient == null &&
+        specularOpacity == null &&
+        innerShadowColor == null &&
+        innerShadowBlurRadius == null &&
+        noiseOpacity == null &&
+        vibrancyIntensity == null &&
+        shadows == null) {
+      return this;
+    }
     return LiquidGlassThemeData(
       blurSigma: blurSigma ?? this.blurSigma,
       tintColor: tintColor ?? this.tintColor,
@@ -229,24 +245,27 @@ class LiquidGlassThemeData {
     LiquidGlassThemeData b,
     double t,
   ) {
+    if (identical(a, b)) return a;
+    if (t == 0.0) return a;
+    if (t == 1.0) return b;
     return LiquidGlassThemeData(
       blurSigma: lerpDouble(a.blurSigma, b.blurSigma, t) ?? a.blurSigma,
       tintColor: Color.lerp(a.tintColor, b.tintColor, t) ?? a.tintColor,
-      tintOpacity:
-          lerpDouble(a.tintOpacity, b.tintOpacity, t) ?? a.tintOpacity,
+      tintOpacity: lerpDouble(a.tintOpacity, b.tintOpacity, t) ?? a.tintOpacity,
       borderRadius:
           BorderRadius.lerp(a.borderRadius, b.borderRadius, t) ??
           a.borderRadius,
       edgeLightColor:
-          Color.lerp(a.edgeLightColor, b.edgeLightColor, t) ??
-          a.edgeLightColor,
+          Color.lerp(a.edgeLightColor, b.edgeLightColor, t) ?? a.edgeLightColor,
       edgeShadowColor:
           Color.lerp(a.edgeShadowColor, b.edgeShadowColor, t) ??
           a.edgeShadowColor,
-      borderWidth:
-          lerpDouble(a.borderWidth, b.borderWidth, t) ?? a.borderWidth,
-      specularGradient:
-          Gradient.lerp(a.specularGradient, b.specularGradient, t),
+      borderWidth: lerpDouble(a.borderWidth, b.borderWidth, t) ?? a.borderWidth,
+      specularGradient: Gradient.lerp(
+        a.specularGradient,
+        b.specularGradient,
+        t,
+      ),
       specularOpacity:
           lerpDouble(a.specularOpacity, b.specularOpacity, t) ??
           a.specularOpacity,
@@ -261,7 +280,47 @@ class LiquidGlassThemeData {
       vibrancyIntensity:
           lerpDouble(a.vibrancyIntensity, b.vibrancyIntensity, t) ??
           a.vibrancyIntensity,
-      shadows: BoxShadow.lerpList(a.shadows ?? [], b.shadows ?? [], t),
+      shadows: (a.shadows == null && b.shadows == null)
+          ? null
+          : BoxShadow.lerpList(a.shadows ?? const [], b.shadows ?? const [], t),
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is LiquidGlassThemeData &&
+        other.blurSigma == blurSigma &&
+        other.tintColor == tintColor &&
+        other.tintOpacity == tintOpacity &&
+        other.borderRadius == borderRadius &&
+        other.edgeLightColor == edgeLightColor &&
+        other.edgeShadowColor == edgeShadowColor &&
+        other.borderWidth == borderWidth &&
+        other.specularGradient == specularGradient &&
+        other.specularOpacity == specularOpacity &&
+        other.innerShadowColor == innerShadowColor &&
+        other.innerShadowBlurRadius == innerShadowBlurRadius &&
+        other.noiseOpacity == noiseOpacity &&
+        other.vibrancyIntensity == vibrancyIntensity &&
+        listEquals(other.shadows, shadows);
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    blurSigma,
+    tintColor,
+    tintOpacity,
+    borderRadius,
+    edgeLightColor,
+    edgeShadowColor,
+    borderWidth,
+    specularGradient,
+    specularOpacity,
+    innerShadowColor,
+    innerShadowBlurRadius,
+    noiseOpacity,
+    vibrancyIntensity,
+    shadows == null ? null : Object.hashAll(shadows!),
+  );
 }

@@ -86,8 +86,12 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPadding =
-        useSafeArea ? MediaQuery.of(context).padding.top : 0.0;
+    // viewPaddingOf: aspect-scoped (a full MediaQuery.of dependency would
+    // rebuild the glass bar on every keyboard-inset frame) and immune to
+    // parent SafeArea/Scaffold consumers, matching the bottom bar.
+    final topPadding = useSafeArea
+        ? MediaQuery.viewPaddingOf(context).top
+        : 0.0;
 
     final mainBar = CupertinoLiquidGlass(
       theme: theme,
@@ -104,7 +108,9 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
             child: DefaultTextStyle.merge(
               style: CupertinoTheme.of(context).textTheme.navTitleTextStyle,
               textAlign: TextAlign.center,
-              child: title ?? const SizedBox.shrink(),
+              child: title != null
+                  ? Semantics(header: true, child: title)
+                  : const SizedBox.shrink(),
             ),
           ),
           if (trailing != null) const SizedBox(width: 8.0),
