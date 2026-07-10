@@ -30,8 +30,12 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 | **Light & Dark mode** | Automatically adapts to `CupertinoTheme` brightness. Light mode is matte & bright; dark mode is deep & contrasty. |
 | **Specular highlight** | A configurable gradient "sheen" that gives the surface its liquid, alive feel. |
 | **ProMotion optimized** | `RepaintBoundary` isolation ensures the blur compositing layer is re-rasterized independently — no scroll jank at 120 Hz. |
-| **Fully customizable** | Override `blurSigma`, `tintOpacity`, `borderRadius`, `borderColor`, `borderWidth`, and `specularGradient` per-widget. |
+| **Fully customizable** | Override `blurSigma`, `tintOpacity`, `borderRadius`, `edgeLightColor`, `edgeShadowColor`, `borderWidth`, and `specularGradient` per-widget. |
+| **Effect intensity dial** | One `effectIntensity` knob (0.0–1.0) scales all decorative layers — `0.0` is a clean iOS-style frosted surface (blur + tint only), `1.0` the full liquid-glass treatment. |
 | **Theme interpolation** | `LiquidGlassThemeData.lerp()` enables smooth animated transitions between any two theme configurations. |
+| **Native-feel gestures** | The tab bar reacts on touch **down** (like `UITabBar`), fires selection haptics on tab change and per crossed boundary while dragging, and honors Reduce Motion. |
+| **Accessible** | Tab items expose full semantics (button, selected state, "Tab X of N"), labels clamp text scaling like native tab bars, and `LiquidGlassDetachedButton` takes a `semanticLabel`. |
+| **Shared backdrop readback** | Uses `BackdropFilter.grouped` — wrap a list of glass cards in a `BackdropGroup` and they share one backdrop snapshot per frame. |
 | **Pre-built bars** | `CupertinoLiquidGlassNavBar` and `CupertinoLiquidGlassBottomBar` — drop-in replacements with safe-area handling. |
 | **Apple HIG compliant** | Bottom bar with 52 pt height, 25 pt icons, 44 pt touch targets for comfortable interaction. |
 | **Rubber banding** | Elastic scale animation (8%) on horizontal drag — the bar expands during swipe and springs back on release. A `Listener` watchdog guarantees the bar resets even when the gesture arena swallows the drag-end callback. |
@@ -207,15 +211,19 @@ The core widget. Wraps any child in a frosted-glass surface with backdrop blur.
 | `glowRadius` | `double` | 24.0 | Blur radius of glow |
 | `enabled` | `bool` | true | When false, skips backdrop blur + decorative layers and renders a solid surface |
 | `disabledColor` | `Color?` | systemGrey6 | Solid background used when `enabled` is false |
+| `effectIntensity` | `double` | 1.0 | Scales all decorative layers (0.0 = blur + tint only, 1.0 = full glass) |
 
 ### `LiquidGlassThemeData`
 
 | Factory / Method | Description |
 |---|---|
-| `LiquidGlassThemeData.light()` | Bright, matte preset matching `UIBlurEffect.systemMaterial` |
-| `LiquidGlassThemeData.dark()` | Deep, contrasty preset matching `UIBlurEffect.systemMaterialDark` |
+| `LiquidGlassThemeData.light()` | Bright, matte preset matching `UIBlurEffect.systemMaterial` (canonical const instance) |
+| `LiquidGlassThemeData.dark()` | Deep, contrasty preset matching `UIBlurEffect.systemMaterialDark` (canonical const instance) |
 | `.copyWith(...)` | Returns a copy with specified fields replaced |
+| `.scaleEffects(factor)` | Returns a copy with all decorative layers scaled (0.0–1.0); the material itself is untouched |
 | `LiquidGlassThemeData.lerp(a, b, t)` | Linearly interpolates between two themes |
+
+`LiquidGlassThemeData` implements value equality (`==`/`hashCode`), so themes are safe to compare, cache, and use as keys.
 
 ### `CupertinoLiquidGlassNavBar`
 
@@ -231,6 +239,7 @@ A floating glass navigation bar with safe-area handling.
 | `horizontalMargin` | `double` | 8.0 | Horizontal margin from screen edges |
 | `useSafeArea` | `bool` | true | Include status bar padding |
 | `enableGlass` | `bool` | true | When false, the bar falls back to a solid Cupertino surface |
+| `effectIntensity` | `double` | 1.0 | Scales all decorative glass layers (0.0 = blur + tint only) |
 | `detachedButton` | `Widget?` | null | Optional detached circular button rendered to the right of the bar |
 
 ### `CupertinoLiquidGlassBottomBar`
@@ -251,7 +260,11 @@ A floating glass tab bar with safe-area handling.
 | `enableGlass` | `bool` | true | When false, the bar falls back to a solid Cupertino surface |
 | `bottomSpacing` | `double?` | auto | Extra clearance below the bar. `null` adds 6 dp on Android (gesture handle area), 0 elsewhere |
 | `springDescription` | `SpringDescription?` | Apple-like | Custom spring physics for selector animation |
+| `enableHaptics` | `bool` | true | Selection haptic on tab change + a tick per crossed boundary while dragging |
+| `effectIntensity` | `double` | 1.0 | Scales all decorative glass layers (0.0 = blur + tint only) |
 | `detachedButton` | `Widget?` | null | Optional detached circular button rendered to the right of the bar (rubber banding does not apply to it) |
+
+The bar reacts on touch **down** (the selector starts moving immediately, like `UITabBar`); the selection is committed via `onTap` on release. When the system Reduce Motion setting is on, springs and rubber banding are skipped.
 
 ### `LiquidGlassDetachedButton`
 
@@ -265,14 +278,17 @@ A circular floating glass button matching the iOS 26 detached-action pattern (Ap
 | `iridescent` | `bool` | true | When true, overlays a sweep gradient simulating prismatic light refraction |
 | `theme` | `LiquidGlassThemeData?` | auto | Optional explicit theme (defaults to a more transparent variant of the brightness preset) |
 | `enableGlass` | `bool` | true | When false, falls back to a solid Cupertino surface; the iridescent sweep is also suppressed |
+| `semanticLabel` | `String?` | null | Label announced by screen readers |
+| `effectIntensity` | `double` | 1.0 | Scales the decorative layers and the iridescent sweep (0.0 = blur + tint only) |
 
-The button has a built-in press animation: scales down to 88% with a 78% opacity dip on tap-down, then springs back via an elastic curve on release.
+The button has a built-in press animation: it scales down to 88% with a subtle darkening scrim on tap-down, then springs back with a single overshoot (~260 ms) on release. With Reduce Motion enabled the release is a short plain ease-out.
 
 ## Performance tips
 
 - **Avoid nesting** multiple `CupertinoLiquidGlass` widgets inside each other — each one adds a compositing layer.
+- **Many glass surfaces in one list?** Wrap the list in a [`BackdropGroup`](https://api.flutter.dev/flutter/widgets/BackdropGroup-class.html): all glass cards inside share a single backdrop readback per frame instead of one per card.
 - The widget already uses `RepaintBoundary` internally; you don't need to add your own.
-- On older devices, consider reducing `blurSigma` (e.g. 15–20) for smoother scrolling.
+- On older devices, consider reducing `blurSigma` (e.g. 15–20) for smoother scrolling, or set `enableGlass: false` as a low-power fallback.
 - Use `CupertinoLiquidGlass` on floating overlays (nav bars, cards, sheets) rather than full-screen backgrounds.
 
 ## Example app
