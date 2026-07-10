@@ -752,12 +752,17 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
 
   void _onTapCancel() => _release();
 
+  /// Springs back with a single overshoot (easeOutBack) in ~260ms. While
+  /// this runs, a fractional Transform.scale sits above the button's
+  /// BackdropFilter, forcing a backdrop re-blur per frame — a long
+  /// elasticOut tail (420ms+) kept that expensive path alive well after
+  /// the motion stopped being perceptible.
   void _release() => _press.animateTo(
     0.0,
     duration: _reduceMotion
         ? const Duration(milliseconds: 80)
-        : const Duration(milliseconds: 420),
-    curve: _reduceMotion ? Curves.easeOut : Curves.elasticOut,
+        : const Duration(milliseconds: 260),
+    curve: _reduceMotion ? Curves.easeOut : Curves.easeOutBack,
   );
 
   @override

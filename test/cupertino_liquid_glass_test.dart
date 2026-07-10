@@ -214,5 +214,47 @@ void main() {
       await tester.tap(find.text('Search'));
       expect(tappedIndex, 1);
     });
+
+    testWidgets('touch-down pre-move does not commit a selection', (
+      tester,
+    ) async {
+      int? tappedIndex;
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: CupertinoPageScaffold(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                CupertinoLiquidGlassBottomBar(
+                  items: const [
+                    LiquidGlassBottomBarItem(
+                      icon: CupertinoIcons.home,
+                      label: 'Home',
+                    ),
+                    LiquidGlassBottomBarItem(
+                      icon: CupertinoIcons.search,
+                      label: 'Search',
+                    ),
+                  ],
+                  onTap: (i) => tappedIndex = i,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Press down on a tab (pill starts pre-moving) but cancel the gesture:
+      // the consumer callback must not fire and the bar must settle back.
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('Search')),
+      );
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(tappedIndex, isNull);
+
+      await gesture.cancel();
+      await tester.pumpAndSettle();
+      expect(tappedIndex, isNull);
+    });
   });
 }

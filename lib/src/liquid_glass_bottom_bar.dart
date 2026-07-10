@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
@@ -201,7 +202,17 @@ class _CupertinoLiquidGlassBottomBarState
   bool _reduceMotion = false;
 
   /// Sliding window of recent drag samples for velocity smoothing.
-  final List<_VelocitySample> _velocitySamples = <_VelocitySample>[];
+  /// A [Queue] so pruning old samples from the front is O(1).
+  final Queue<_VelocitySample> _velocitySamples = Queue<_VelocitySample>();
+
+  /// True while the selector has been pre-moved by a touch-down that has not
+  /// yet been committed (tap-up) or taken over by a drag. Used to revert the
+  /// pill if the gesture is lost to a parent recognizer.
+  bool _pendingPreMove = false;
+
+  /// Last index a selection haptic was fired for during the current drag,
+  /// so crossing a tab boundary ticks once — like UISegmentedControl.
+  int _lastHapticIndex = 0;
 
   /// Monotonic fallback clock for velocity samples. Never mixed with
   /// [DragUpdateDetails.sourceTimeStamp] within a single gesture — the two
@@ -220,10 +231,15 @@ class _CupertinoLiquidGlassBottomBarState
   );
 
   /// Spring for rubber banding (slight overshoot for elastic feel).
+  ///
+  /// Deliberately stiff: while this spring runs, a [Transform] above the
+  /// bar's [BackdropFilter] forces a full backdrop re-blur every frame, so
+  /// a shorter settle (~0.3s vs ~0.45s) directly cuts the most expensive
+  /// per-frame window in the widget without losing the bounce.
   static const _elasticSpring = SpringDescription(
     mass: 1.0,
-    stiffness: 300.0,
-    damping: 20.0,
+    stiffness: 420.0,
+    damping: 24.0,
   );
 
   /// Scale factor when bar is expanded during drag.
@@ -328,8 +344,13 @@ class _CupertinoLiquidGlassBottomBarState
 
   /// Commits a selection: fires the haptic (when it actually changes),
   /// notifies the callback, and animates the selector.
-  void _selectTab(int index, {double initialVelocity = 0.0}) {
-    if (widget.enableHaptics && index != widget.currentIndex) {
+  ///
+  /// [withHaptic] overrides the default "changed vs currentIndex" check —
+  /// drag gestures already tick per crossed boundary, so the commit must
+  /// not tick a second time for the same index.
+  void _selectTab(int index, {double initialVelocity = 0.0, bool? withHaptic}) {
+    final fireHaptic = withHaptic ?? (index != widget.currentIndex);
+    if (widget.enableHaptics && fireHaptic) {
       HapticFeedback.selectionClick();
     }
     widget.onTap?.call(index);
@@ -363,7 +384,26 @@ class _CupertinoLiquidGlassBottomBarState
   // Gestures
   // ---------------------------------------------------------------------------
 
+  /// Touch-down response: start moving the pill toward the pressed tab
+  /// immediately, like the native tab bar (UITabBar reacts on touch down,
+  /// not on release). The selection itself is still committed on tap-up /
+  /// drag-end; if neither happens (gesture stolen by a parent recognizer),
+  /// [_onPointerRelease] reverts the pill to [widget.currentIndex].
+  void _onPointerDown(PointerDownEvent event, double contentWidth) {
+    if (_isDragging) return;
+    final tabWidth = contentWidth / widget.items.length;
+    final index = (event.localPosition.dx / tabWidth).floor().clamp(
+      0,
+      _maxIndex,
+    );
+    if (index != _position.value.round()) {
+      _pendingPreMove = true;
+      _animateTo(index);
+    }
+  }
+
   void _onTapUp(TapUpDetails details, double contentWidth) {
+    _pendingPreMove = false;
     final tabWidth = contentWidth / widget.items.length;
     final index = (details.localPosition.dx / tabWidth).floor().clamp(
       0,
@@ -375,6 +415,8 @@ class _CupertinoLiquidGlassBottomBarState
 
   void _onDragStart(DragStartDetails details) {
     _isDragging = true;
+    _pendingPreMove = false;
+    _lastHapticIndex = _position.value.round().clamp(0, _maxIndex);
 
     // CRITICAL: stop any in-flight spring so it doesn't fight the drag.
     // Without this, the controller's ticks keep overwriting `_position` on
@@ -408,7 +450,7 @@ class _CupertinoLiquidGlassBottomBarState
       final cutoff = now - _kVelocityWindowMs * 1000;
       while (_velocitySamples.isNotEmpty &&
           _velocitySamples.first.timeUs < cutoff) {
-        _velocitySamples.removeAt(0);
+        _velocitySamples.removeFirst();
       }
     }
 
@@ -416,6 +458,16 @@ class _CupertinoLiquidGlassBottomBarState
       0.0,
       _maxIndex.toDouble(),
     );
+
+    // Tick once per crossed tab boundary while dragging, matching
+    // UISegmentedControl's selection feedback.
+    final nearest = _position.value.round().clamp(0, _maxIndex);
+    if (nearest != _lastHapticIndex) {
+      _lastHapticIndex = nearest;
+      if (widget.enableHaptics) {
+        HapticFeedback.selectionClick();
+      }
+    }
 
     // Smoothed velocity (fractional-index per second).
     if (_velocitySamples.length >= 2) {
@@ -449,7 +501,13 @@ class _CupertinoLiquidGlassBottomBarState
     _velocitySamples.clear();
 
     // Hand the gesture's momentum to the spring so motion continues smoothly.
-    _selectTab(target, initialVelocity: flingVelocity);
+    // Crossing haptics already ticked for `_lastHapticIndex`; only tick here
+    // if a fling carried the target one tab further.
+    _selectTab(
+      target,
+      initialVelocity: flingVelocity,
+      withHaptic: target != _lastHapticIndex,
+    );
 
     _animateElasticTo(1.0);
   }
@@ -463,18 +521,24 @@ class _CupertinoLiquidGlassBottomBarState
     _animateElasticTo(1.0);
   }
 
-  /// Safety net for cases where [onHorizontalDragEnd] is swallowed — a parent
-  /// recognizer reclaiming the gesture arena mid-drag, the OS interrupting
-  /// the pointer (system gesture, app backgrounding), etc. [Listener] still
-  /// fires raw pointer up/cancel in those cases, so use that as a backup:
-  /// defer one microtask so the normal end path can run first, and if the
-  /// drag flag is still set, force-cleanup so the bar doesn't stay stuck in
-  /// the expanded rubber-band scale.
+  /// Safety net for cases where [onHorizontalDragEnd] or [onTapUp] is
+  /// swallowed — a parent recognizer reclaiming the gesture arena mid-drag,
+  /// the OS interrupting the pointer (system gesture, app backgrounding),
+  /// etc. [Listener] still fires raw pointer up/cancel in those cases, so
+  /// use that as a backup: defer one microtask so the normal end path can
+  /// run first, then (a) force-cleanup an orphaned drag so the bar doesn't
+  /// stay stuck in the expanded rubber-band scale, and (b) revert an
+  /// uncommitted touch-down pre-move so the pill can't rest on a tab the
+  /// consumer never selected.
   void _onPointerRelease(PointerEvent _) {
-    if (!_isDragging) return;
+    if (!_isDragging && !_pendingPreMove) return;
     scheduleMicrotask(() {
-      if (_isDragging && mounted) {
+      if (!mounted) return;
+      if (_isDragging) {
         _onDragCancel();
+      } else if (_pendingPreMove) {
+        _pendingPreMove = false;
+        _animateTo(widget.currentIndex);
       }
     });
   }
@@ -527,6 +591,7 @@ class _CupertinoLiquidGlassBottomBarState
 
             return Listener(
               behavior: HitTestBehavior.translucent,
+              onPointerDown: (e) => _onPointerDown(e, contentWidth),
               onPointerUp: _onPointerRelease,
               onPointerCancel: _onPointerRelease,
               child: GestureDetector(

@@ -21,6 +21,13 @@ Performance & pixel-fidelity release: eliminates the transition stutter and per-
 * **Inner shadow accuracy**: the punch-out rect is inflated by 4× the blur radius so the outer edge's blur tail can't bleed a faint band back into the surface.
 * **Selector overflow clamp**: a velocity-stretched pill can no longer slide under the bar's rounded clip at edge tabs during fast flings (it was visibly sliced flat).
 
+### Gesture & animation tuning
+* **Touch-down response**: the selector pill starts moving toward the pressed tab on touch **down** (like `UITabBar`), not on release; the selection is still committed on tap-up/drag-end, and a safety net reverts the pill if the gesture is stolen by a parent recognizer before committing.
+* **Drag-cross haptics**: while dragging, a selection tick fires once per crossed tab boundary (like `UISegmentedControl`), with no double-tick on release.
+* **Tighter rubber band**: the elastic spring is stiffened (settle ~0.3s instead of ~0.45s) — while it runs, a `Transform` above the bar's `BackdropFilter` forces a full backdrop re-blur per frame, so a shorter settle directly cuts the widget's most expensive per-frame window.
+* **Snappier button release**: `LiquidGlassDetachedButton` springs back in ~260ms with a single overshoot (`easeOutBack`) instead of a 420ms `elasticOut` tail that kept the per-frame backdrop re-blur alive after motion stopped being perceptible.
+* **O(1) velocity window**: drag velocity samples are pruned from a `Queue` instead of `List.removeAt(0)`.
+
 ### Native-feel & accessibility
 * **Selection haptics**: the bottom bar fires `HapticFeedback.selectionClick()` when the selection changes (like `UISelectionFeedbackGenerator`); opt out with `enableHaptics: false`.
 * **Reduce Motion**: when `MediaQuery.disableAnimationsOf` is true, the selector jumps without springs/overshoot, rubber banding is skipped, and the detached button uses a short non-elastic release.
