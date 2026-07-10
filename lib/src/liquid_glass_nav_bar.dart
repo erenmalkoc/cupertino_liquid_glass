@@ -64,6 +64,11 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
   /// fallback or design opt-out. Defaults to true.
   final bool enableGlass;
 
+  /// How strongly the decorative glass layers are rendered (0.0–1.0).
+  /// `0.0` gives a clean frosted surface (blur + tint only), `1.0` the full
+  /// liquid-glass treatment. Forwarded to [CupertinoLiquidGlass.effectIntensity].
+  final double effectIntensity;
+
   /// An optional floating circular glass button rendered to the right of the
   /// main bar, visually detached from it.
   ///
@@ -81,6 +86,7 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
     this.horizontalMargin = 8.0,
     this.useSafeArea = true,
     this.enableGlass = true,
+    this.effectIntensity = 1.0,
     this.detachedButton,
   });
 
@@ -96,6 +102,7 @@ class CupertinoLiquidGlassNavBar extends StatelessWidget {
     final mainBar = CupertinoLiquidGlass(
       theme: theme,
       enabled: enableGlass,
+      effectIntensity: effectIntensity,
       borderRadius:
           borderRadius ?? const BorderRadius.all(Radius.circular(22.0)),
       height: _kNavBarContentHeight,

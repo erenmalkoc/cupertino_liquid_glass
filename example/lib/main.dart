@@ -308,6 +308,7 @@ class _EffectsPage extends StatefulWidget {
 
 class _EffectsPageState extends State<_EffectsPage> {
   double _lerpT = 0.0;
+  double _effectIntensity = 1.0;
 
   @override
   Widget build(BuildContext context) {
@@ -321,7 +322,50 @@ class _EffectsPageState extends State<_EffectsPage> {
     return ListView(
       padding: EdgeInsets.only(top: top + 72, bottom: 130, left: 16, right: 16),
       children: [
+        // Effect intensity — 0.0 is a clean frosted surface (blur + tint
+        // only), 1.0 the full liquid-glass decoration.
+        const _SectionLabel('effectIntensity'),
+        const SizedBox(height: 8),
+        CupertinoLiquidGlass(
+          effectIntensity: _effectIntensity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text(
+                    'Plain',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  Expanded(
+                    child: CupertinoSlider(
+                      value: _effectIntensity,
+                      onChanged: (v) => setState(() => _effectIntensity = v),
+                    ),
+                  ),
+                  const Text(
+                    'Glass',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'effectIntensity: ${_effectIntensity.toStringAsFixed(2)}   '
+                '(0 = blur + tint only)',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'Menlo',
+                  color: CupertinoColors.systemGrey,
+                ),
+              ),
+            ],
+          ),
+        ),
+
         // Theme lerp
+        const SizedBox(height: 20),
         const _SectionLabel('LiquidGlassThemeData.lerp()'),
         const SizedBox(height: 8),
         CupertinoLiquidGlass(

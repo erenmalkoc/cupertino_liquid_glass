@@ -96,15 +96,15 @@ class LiquidGlassThemeData {
     this.tintColor = CupertinoColors.white,
     this.tintOpacity = 0.65,
     this.borderRadius = const BorderRadius.all(Radius.circular(20.0)),
-    this.edgeLightColor = const Color(0x50FFFFFF),
+    this.edgeLightColor = const Color(0x38FFFFFF),
     this.edgeShadowColor = const Color(0x10000000),
     this.borderWidth = 0.75,
     this.specularGradient,
-    this.specularOpacity = 0.25,
-    this.innerShadowColor = const Color(0x20000000),
+    this.specularOpacity = 0.15,
+    this.innerShadowColor = const Color(0x14000000),
     this.innerShadowBlurRadius = 4.0,
-    this.noiseOpacity = 0.025,
-    this.vibrancyIntensity = 0.12,
+    this.noiseOpacity = 0.015,
+    this.vibrancyIntensity = 0.09,
     this.shadows,
   });
 
@@ -127,12 +127,15 @@ class LiquidGlassThemeData {
   /// and painter `shouldRepaint` checks short-circuit across rebuilds.
   factory LiquidGlassThemeData.dark() => _darkPreset;
 
+  // Preset decoration levels are deliberately restrained: real iOS system
+  // materials have no diagonal sheen, only a barely-there edge treatment.
+  // Anything stronger reads as "fake glass" over rich content.
   static const LiquidGlassThemeData _lightPreset = LiquidGlassThemeData(
     blurSigma: 25.0,
     tintColor: CupertinoColors.white,
     tintOpacity: 0.65,
     borderRadius: BorderRadius.all(Radius.circular(20.0)),
-    edgeLightColor: Color(0x60FFFFFF),
+    edgeLightColor: Color(0x40FFFFFF),
     edgeShadowColor: Color(0x08000000),
     borderWidth: 0.75,
     specularGradient: LinearGradient(
@@ -141,11 +144,11 @@ class LiquidGlassThemeData {
       colors: [Color(0x40FFFFFF), Color(0x10FFFFFF), Color(0x00FFFFFF)],
       stops: [0.0, 0.4, 1.0],
     ),
-    specularOpacity: 0.30,
-    innerShadowColor: Color(0x18000000),
+    specularOpacity: 0.14,
+    innerShadowColor: Color(0x0F000000),
     innerShadowBlurRadius: 3.0,
-    noiseOpacity: 0.02,
-    vibrancyIntensity: 0.10,
+    noiseOpacity: 0.012,
+    vibrancyIntensity: 0.08,
     shadows: [
       BoxShadow(
         color: Color(0x1A000000),
@@ -161,7 +164,7 @@ class LiquidGlassThemeData {
     tintColor: Color(0xFF1C1C1E),
     tintOpacity: 0.55,
     borderRadius: BorderRadius.all(Radius.circular(20.0)),
-    edgeLightColor: Color(0x40FFFFFF),
+    edgeLightColor: Color(0x2AFFFFFF),
     edgeShadowColor: Color(0x20000000),
     borderWidth: 0.75,
     specularGradient: LinearGradient(
@@ -170,11 +173,11 @@ class LiquidGlassThemeData {
       colors: [Color(0x35FFFFFF), Color(0x0CFFFFFF), Color(0x00FFFFFF)],
       stops: [0.0, 0.35, 1.0],
     ),
-    specularOpacity: 0.22,
-    innerShadowColor: Color(0x30000000),
+    specularOpacity: 0.10,
+    innerShadowColor: Color(0x1C000000),
     innerShadowBlurRadius: 5.0,
-    noiseOpacity: 0.03,
-    vibrancyIntensity: 0.15,
+    noiseOpacity: 0.018,
+    vibrancyIntensity: 0.10,
     shadows: [
       BoxShadow(
         color: Color(0x50000000),
@@ -234,6 +237,30 @@ class LiquidGlassThemeData {
       noiseOpacity: noiseOpacity ?? this.noiseOpacity,
       vibrancyIntensity: vibrancyIntensity ?? this.vibrancyIntensity,
       shadows: shadows ?? this.shadows,
+    );
+  }
+
+  /// Returns a copy with all *decorative* layers scaled by [factor]
+  /// (clamped to 0.0–1.0): specular sheen, edge lighting, inner shadow,
+  /// noise grain, and vibrancy.
+  ///
+  /// The material itself — [blurSigma], [tintColor]/[tintOpacity], shape and
+  /// drop [shadows] — is left untouched, so `scaleEffects(0.0)` yields a
+  /// clean iOS-style frosted surface (blur + tint only) and `1.0` returns
+  /// `this` unchanged. This powers the `effectIntensity` parameter on the
+  /// glass widgets.
+  LiquidGlassThemeData scaleEffects(double factor) {
+    final f = factor.clamp(0.0, 1.0);
+    if (f >= 1.0) return this;
+    return copyWith(
+      specularOpacity: specularOpacity * f,
+      edgeLightColor: edgeLightColor.withValues(alpha: edgeLightColor.a * f),
+      edgeShadowColor: edgeShadowColor.withValues(alpha: edgeShadowColor.a * f),
+      innerShadowColor: innerShadowColor.withValues(
+        alpha: innerShadowColor.a * f,
+      ),
+      noiseOpacity: noiseOpacity * f,
+      vibrancyIntensity: vibrancyIntensity * f,
     );
   }
 

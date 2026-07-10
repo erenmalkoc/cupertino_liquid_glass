@@ -92,6 +92,17 @@ class CupertinoLiquidGlass extends StatelessWidget {
   /// `CupertinoColors.systemGrey6` is resolved against the current brightness.
   final Color? disabledColor;
 
+  /// How strongly the decorative glass layers are rendered (0.0–1.0).
+  ///
+  /// Scales the specular sheen, edge lighting, inner shadow, noise grain,
+  /// and vibrancy — the material itself (blur, tint, shape, drop shadow)
+  /// is unaffected. `0.0` yields a clean iOS `systemMaterial`-style frosted
+  /// surface (blur + tint only); `1.0` renders the full liquid-glass
+  /// treatment. Defaults to 1.0.
+  ///
+  /// See [LiquidGlassThemeData.scaleEffects].
+  final double effectIntensity;
+
   /// Creates a [CupertinoLiquidGlass] widget.
   const CupertinoLiquidGlass({
     super.key,
@@ -111,10 +122,12 @@ class CupertinoLiquidGlass extends StatelessWidget {
     this.glowRadius = 24.0,
     this.enabled = true,
     this.disabledColor,
+    this.effectIntensity = 1.0,
   });
 
   /// Resolves the effective theme by merging explicit overrides on top of
-  /// either the supplied [theme] or the brightness-derived default.
+  /// either the supplied [theme] or the brightness-derived default, then
+  /// applying [effectIntensity].
   LiquidGlassThemeData _resolveTheme(BuildContext context) {
     final brightness =
         CupertinoTheme.of(context).brightness ?? Brightness.light;
@@ -124,15 +137,17 @@ class CupertinoLiquidGlass extends StatelessWidget {
             ? LiquidGlassThemeData.dark()
             : LiquidGlassThemeData.light());
 
-    return base.copyWith(
-      blurSigma: blurSigma,
-      tintOpacity: tintOpacity,
-      borderRadius: borderRadius,
-      edgeLightColor: edgeLightColor,
-      edgeShadowColor: edgeShadowColor,
-      borderWidth: borderWidth,
-      specularGradient: specularGradient,
-    );
+    return base
+        .copyWith(
+          blurSigma: blurSigma,
+          tintOpacity: tintOpacity,
+          borderRadius: borderRadius,
+          edgeLightColor: edgeLightColor,
+          edgeShadowColor: edgeShadowColor,
+          borderWidth: borderWidth,
+          specularGradient: specularGradient,
+        )
+        .scaleEffects(effectIntensity);
   }
 
   @override
@@ -696,6 +711,10 @@ class LiquidGlassDetachedButton extends StatefulWidget {
   /// An optional label announced by screen readers (VoiceOver/TalkBack).
   final String? semanticLabel;
 
+  /// How strongly the decorative glass layers (and the iridescent sweep)
+  /// are rendered (0.0–1.0). Forwarded to [CupertinoLiquidGlass.effectIntensity].
+  final double effectIntensity;
+
   /// Creates a [LiquidGlassDetachedButton].
   const LiquidGlassDetachedButton({
     super.key,
@@ -706,6 +725,7 @@ class LiquidGlassDetachedButton extends StatefulWidget {
     this.theme,
     this.enableGlass = true,
     this.semanticLabel,
+    this.effectIntensity = 1.0,
   });
 
   @override
@@ -784,6 +804,7 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
           CupertinoLiquidGlass(
             theme: resolvedTheme,
             enabled: widget.enableGlass,
+            effectIntensity: widget.effectIntensity,
             borderRadius: borderRadius,
             width: widget.size,
             height: widget.size,
@@ -791,13 +812,18 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
           ),
           // Iridescent sweep depends on backdrop sampling, so only render it
           // when the glass effect is active.
-          if (widget.iridescent && widget.enableGlass)
+          if (widget.iridescent &&
+              widget.enableGlass &&
+              widget.effectIntensity > 0)
             Positioned.fill(
               child: IgnorePointer(
                 child: ClipRRect(
                   borderRadius: borderRadius,
                   child: CustomPaint(
-                    painter: _IridescentPainter(isDark: isDark),
+                    painter: _IridescentPainter(
+                      isDark: isDark,
+                      intensity: widget.effectIntensity.clamp(0.0, 1.0),
+                    ),
                   ),
                 ),
               ),
@@ -854,13 +880,16 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
 /// colorful content.
 class _IridescentPainter extends CustomPainter {
   final bool isDark;
+  final double intensity;
 
-  const _IridescentPainter({required this.isDark});
+  const _IridescentPainter({required this.isDark, this.intensity = 1.0});
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    final opacity = isDark ? 0.10 : 0.12;
+    // Restrained by default — a saturated rainbow sweep reads as artificial;
+    // native iOS 26 buttons only hint at prismatic refraction.
+    final opacity = (isDark ? 0.06 : 0.07) * intensity;
 
     final gradient = SweepGradient(
       center: Alignment.center,
@@ -879,5 +908,5 @@ class _IridescentPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_IridescentPainter oldDelegate) =>
-      isDark != oldDelegate.isDark;
+      isDark != oldDelegate.isDark || intensity != oldDelegate.intensity;
 }

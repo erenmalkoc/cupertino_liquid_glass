@@ -21,6 +21,11 @@ Performance & pixel-fidelity release: eliminates the transition stutter and per-
 * **Inner shadow accuracy**: the punch-out rect is inflated by 4× the blur radius so the outer edge's blur tail can't bleed a faint band back into the surface.
 * **Selector overflow clamp**: a velocity-stretched pill can no longer slide under the bar's rounded clip at edge tabs during fast flings (it was visibly sliced flat).
 
+### Visual tuning — toward native materials
+* **New `effectIntensity` parameter** (0.0–1.0) on `CupertinoLiquidGlass`, `CupertinoLiquidGlassBottomBar`, `CupertinoLiquidGlassNavBar`, and `LiquidGlassDetachedButton`: scales all *decorative* layers (specular sheen, edge lighting, inner shadow, noise grain, vibrancy, iridescent sweep) without touching the material itself (blur, tint, shape, drop shadow). `0.0` yields a clean iOS `systemMaterial`-style frosted surface; `1.0` is the full liquid-glass treatment. Backed by the new public `LiquidGlassThemeData.scaleEffects()`.
+* **Restrained default decoration**: the presets previously read as "fake glass" over rich content — real iOS materials have no diagonal sheen and only a barely-there edge treatment. Specular opacity roughly halved (light 0.30 → 0.14, dark 0.22 → 0.10), edge-light alpha reduced (~35%), inner shadow softened (light `0x18` → `0x0F`, dark `0x30` → `0x1C`), noise grain thinned (0.02/0.03 → 0.012/0.018), vibrancy eased (0.10/0.15 → 0.08/0.10). The detached button's iridescent sweep is roughly halved (0.12/0.10 → 0.07/0.06) and now also scales with `effectIntensity`.
+* **Example app**: new *effectIntensity* slider on the Effects page to compare plain-frost vs full-glass live.
+
 ### Gesture & animation tuning
 * **Touch-down response**: the selector pill starts moving toward the pressed tab on touch **down** (like `UITabBar`), not on release; the selection is still committed on tap-up/drag-end, and a safety net reverts the pill if the gesture is stolen by a parent recognizer before committing.
 * **Drag-cross haptics**: while dragging, a selection tick fires once per crossed tab boundary (like `UISegmentedControl`), with no double-tick on release.

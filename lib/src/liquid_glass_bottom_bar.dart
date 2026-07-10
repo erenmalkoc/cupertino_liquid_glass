@@ -144,6 +144,11 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
   /// `UISelectionFeedbackGenerator` behavior. Defaults to true.
   final bool enableHaptics;
 
+  /// How strongly the decorative glass layers are rendered (0.0–1.0).
+  /// `0.0` gives a clean frosted surface (blur + tint only), `1.0` the full
+  /// liquid-glass treatment. Forwarded to [CupertinoLiquidGlass.effectIntensity].
+  final double effectIntensity;
+
   /// An optional floating circular glass button rendered to the right of the
   /// main bar, visually detached from it.
   ///
@@ -169,6 +174,7 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.inactiveColor,
     this.springDescription,
     this.enableHaptics = true,
+    this.effectIntensity = 1.0,
     this.detachedButton,
   });
 
@@ -580,6 +586,7 @@ class _CupertinoLiquidGlassBottomBarState
     Widget mainBar = CupertinoLiquidGlass(
       theme: widget.theme,
       enabled: widget.enableGlass,
+      effectIntensity: widget.effectIntensity,
       borderRadius:
           widget.borderRadius ?? const BorderRadius.all(Radius.circular(26.0)),
       padding: EdgeInsets.zero,

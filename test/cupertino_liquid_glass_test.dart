@@ -87,6 +87,44 @@ void main() {
       const b = LiquidGlassThemeData(blurSigma: 40.0);
       expect(LiquidGlassThemeData.lerp(a, b, 0.5).shadows, isNull);
     });
+
+    test('scaleEffects scales decoration but not the material', () {
+      final theme = LiquidGlassThemeData.light();
+      final scaled = theme.scaleEffects(0.5);
+      expect(
+        scaled.specularOpacity,
+        closeTo(theme.specularOpacity * 0.5, 1e-9),
+      );
+      expect(scaled.noiseOpacity, closeTo(theme.noiseOpacity * 0.5, 1e-9));
+      expect(
+        scaled.vibrancyIntensity,
+        closeTo(theme.vibrancyIntensity * 0.5, 1e-9),
+      );
+      expect(
+        scaled.edgeLightColor.a,
+        closeTo(theme.edgeLightColor.a * 0.5, 1e-6),
+      );
+      // Material properties stay untouched.
+      expect(scaled.blurSigma, theme.blurSigma);
+      expect(scaled.tintOpacity, theme.tintOpacity);
+      expect(scaled.borderRadius, theme.borderRadius);
+      expect(scaled.shadows, theme.shadows);
+    });
+
+    test('scaleEffects(1.0) returns the same instance', () {
+      final theme = LiquidGlassThemeData.light();
+      expect(identical(theme.scaleEffects(1.0), theme), isTrue);
+      expect(identical(theme.scaleEffects(2.0), theme), isTrue);
+    });
+
+    test('scaleEffects(0.0) zeroes all decorative layers', () {
+      final plain = LiquidGlassThemeData.dark().scaleEffects(0.0);
+      expect(plain.specularOpacity, 0.0);
+      expect(plain.noiseOpacity, 0.0);
+      expect(plain.vibrancyIntensity, 0.0);
+      expect(plain.edgeLightColor.a, 0.0);
+      expect(plain.innerShadowColor.a, 0.0);
+    });
   });
 
   group('CupertinoLiquidGlass', () {
