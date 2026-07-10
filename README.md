@@ -302,7 +302,7 @@ flutter run
 
 ## Contributing
 
-Contributions are welcome! Please open an issue first to discuss what you'd like to change.
+Contributions are welcome! Please open an issue first to discuss what you'd like to change. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) for how the package is put together, and [doc/ROADMAP.md](doc/ROADMAP.md) for planned work.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)

@@ -1,6 +1,24 @@
-doc/assets/mobile-gif.gif
-doc/assets/preview_light.png
-doc/assets/preview_dark.png
-ARCHITECTURE.md
-TECH_STACK.md
-TASKS.md
+# Files excluded from the pub.dev package archive.
+# NOTE: because .pubignore exists, pub uses it INSTEAD of .gitignore for the
+# package root — every publish exclusion must live in this file.
+
+# Build & tool output
+build/
+.dart_tool/
+coverage/
+pubspec.lock
+.flutter-plugins-dependencies
+flutter_*.log
+
+# IDE / assistant files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.claude/
+CLAUDE.md
+
+# Repo-internal development docs and README assets (assets are referenced via
+# raw.githubusercontent.com URLs; shipping the GIF would add ~7 MB for nothing).
+doc/

@@ -5,7 +5,7 @@
 | Technology | Version | Purpose |
 |-----------|---------|---------|
 | **Dart** | >= 3.11.3 | Programming language |
-| **Flutter** | >= 3.27.0 | UI framework |
+| **Flutter** | >= 3.32.0 | UI framework (`BackdropFilter.grouped` / `BackdropGroup`) |
 
 ## Dependencies
 
@@ -23,14 +23,15 @@
 ### Rendering & Compositing
 | API | Usage |
 |-----|-------|
-| `BackdropFilter` | Real-time Gaussian blur on backdrop content |
-| `ImageFilter.blur` | Configurable sigma blur kernel |
+| `BackdropFilter.grouped` / `BackdropGroup` | Real-time Gaussian blur; sibling surfaces share one backdrop readback |
+| `ImageFilter.blur` + `ImageFilter.compose` | Blur kernel composed with the vibrancy color filter in one pass |
+| `ColorFilter.matrix` | Saturation-boost vibrancy (UIKit saturate-then-blur recipe) |
 | `CustomPainter` | Multi-layer glass surface rendering (background + foreground) |
 | `ClipRRect` | Rounded corner clipping for all composited layers |
 | `RepaintBoundary` | Performance isolation — prevents ancestor repaints |
-| `BlendMode.overlay` | Vibrancy effect to boost perceived saturation |
-| `MaskFilter.blur` | Soft bloom glow on selector pill |
-| `RadialGradient` | Bloom glow effect rendering |
+| `ImageShader` + `Picture.toImageSync` | Pre-baked repeating noise-grain tile (cached per DPR) |
+| `MaskFilter.blur` | Static content only: outer glow and inner shadow |
+| `RadialGradient` / `ui.Gradient.radial` | Bloom glow and icon halos (no per-frame Gaussian passes) |
 | `LinearGradient` | Specular shine and edge-lit border |
 
 ### Animation & Physics
@@ -44,8 +45,13 @@
 ### Gestures & Interaction
 | API | Usage |
 |-----|-------|
+| `Listener` | Touch-down pill pre-move + orphaned-gesture watchdog |
 | `GestureDetector` | Tap and horizontal drag detection on bottom bar |
 | `Velocity` | Fling detection for snap-to-tab behavior |
+| `HapticFeedback.selectionClick` | Selection haptic on tab change + per crossed boundary while dragging |
+| `Semantics` | Screen-reader support (tab buttons, selected state, header titles) |
+| `MediaQuery.disableAnimationsOf` | Reduce Motion: springs and rubber banding degrade gracefully |
+| `MediaQuery.withClampedTextScaling` | Native-style fixed tab-label size at accessibility text scales |
 
 ### Theming & Platform
 | API | Usage |

@@ -27,7 +27,7 @@ test/
 
 ### 1. CupertinoLiquidGlass (Core Widget)
 
-**File:** `lib/src/cupertino_liquid_glass_widget.dart` (~660 lines)
+**File:** `lib/src/cupertino_liquid_glass_widget.dart` (~910 lines)
 
 Wraps any child widget in an Apple-style liquid glass surface. Stateless; all rendering is handled by internal painters.
 
@@ -64,7 +64,7 @@ widget's own shadow.
 
 ### 2. LiquidGlassThemeData (Theme System)
 
-**File:** `lib/src/liquid_glass_theme.dart` (~268 lines)
+**File:** `lib/src/liquid_glass_theme.dart` (~355 lines)
 
 Immutable configuration object controlling every visual parameter of the glass effect.
 
@@ -87,7 +87,7 @@ Immutable configuration object controlling every visual parameter of the glass e
 
 ### 3. CupertinoLiquidGlassNavBar
 
-**File:** `lib/src/liquid_glass_nav_bar.dart` (~128 lines)
+**File:** `lib/src/liquid_glass_nav_bar.dart` (~145 lines)
 
 Pre-built floating navigation bar. Stateless wrapper around `CupertinoLiquidGlass`. Content height is fixed at 44 pt to align with the default `LiquidGlassDetachedButton` baseline.
 
@@ -104,7 +104,7 @@ CupertinoLiquidGlassNavBar
 
 ### 4. CupertinoLiquidGlassBottomBar
 
-**File:** `lib/src/liquid_glass_bottom_bar.dart` (~420 lines)
+**File:** `lib/src/liquid_glass_bottom_bar.dart` (~990 lines)
 
 Pre-built floating tab bar with spring physics, velocity-based stretch, and drag interaction.
 
