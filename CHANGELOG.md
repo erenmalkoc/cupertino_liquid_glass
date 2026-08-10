@@ -1,6 +1,7 @@
 ## 0.7.1
 
 * **Tab strip clears the rounded ends**: the bar's corner arc curves inwards exactly where the first and last tab's label sits, so a wide label (or a velocity-stretched selector pill) visibly crossed the border. The strip is now inset horizontally by a fraction of the corner radius — new `itemInset` parameter overrides it, and a square-cornered bar still uses the full width. Taps keep the full-width gesture box, so the inset margins belong to their neighbouring tabs.
+* **Labels fit the selector pill**: a label wider than the pill spilled past its edge while its tab was selected (long words in non-English locales hit this constantly). The bar now measures the labels at their selected weight and, if the widest one overflows, shrinks *every* label by the same factor — one consistent size for the bar, and no jump when the selection moves. The shrink stops at 7.5 pt, below which labels ellipsize as before. The pill itself is also slightly wider (0.82 → 0.88 of a tab).
 
 ## 0.7.0
 

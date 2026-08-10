@@ -310,6 +310,38 @@ void main() {
       expect(inset - flush, closeTo(10.0, 0.01));
     });
 
+    testWidgets('shrinks every label until the widest fits the selector', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _bottomBarHarness(
+          itemInset: 0.0,
+          labels: const ['Hi', 'A tab label far too long to ever fit inside the selector pill'],
+        ),
+      );
+
+      final short = tester.widget<Text>(find.text('Hi')).style!.fontSize!;
+      final long = tester
+          .widget<Text>(find.text('A tab label far too long to ever fit inside the selector pill'))
+          .style!
+          .fontSize!;
+
+      // One size for the whole bar, driven by the label that would otherwise
+      // spill out of the pill.
+      expect(short, long);
+      expect(short, lessThan(10.0));
+    });
+
+    testWidgets('leaves labels at full size when they already fit', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _bottomBarHarness(itemInset: 0.0, labels: const ['Hi', 'Yo']),
+      );
+
+      expect(tester.widget<Text>(find.text('Hi')).style!.fontSize, 10.0);
+    });
+
     testWidgets('taps on the inset margin still hit the outer tabs', (
       tester,
     ) async {
@@ -330,7 +362,11 @@ void main() {
   });
 }
 
-Widget _bottomBarHarness({required double itemInset, ValueChanged<int>? onTap}) {
+Widget _bottomBarHarness({
+  required double itemInset,
+  ValueChanged<int>? onTap,
+  List<String> labels = const ['Home', 'Search'],
+}) {
   return CupertinoApp(
     home: CupertinoPageScaffold(
       child: Column(
@@ -338,15 +374,12 @@ Widget _bottomBarHarness({required double itemInset, ValueChanged<int>? onTap}) 
         children: [
           CupertinoLiquidGlassBottomBar(
             itemInset: itemInset,
-            items: const [
-              LiquidGlassBottomBarItem(
-                icon: CupertinoIcons.home,
-                label: 'Home',
-              ),
-              LiquidGlassBottomBarItem(
-                icon: CupertinoIcons.search,
-                label: 'Search',
-              ),
+            items: [
+              for (final label in labels)
+                LiquidGlassBottomBarItem(
+                  icon: CupertinoIcons.home,
+                  label: label,
+                ),
             ],
             onTap: onTap ?? (_) {},
           ),

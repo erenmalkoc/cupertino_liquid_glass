@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
@@ -41,6 +42,16 @@ const double _kIconSize = 25.0;
 
 /// Label font size for tab bars.
 const double _kLabelFontSize = 10.0;
+
+/// How far the label may shrink to fit the selector pill before it is left to
+/// ellipsize instead — below this it stops reading as a label.
+const double _kMinLabelFontSize = 7.5;
+
+/// Breathing room between the label and the selector pill's edge.
+const double _kLabelPadding = 3.0;
+
+/// The selector pill's width as a fraction of a tab.
+const double _kSelectorWidthFactor = 0.88;
 
 /// Fraction of the corner radius used as the tab strip's horizontal inset,
 /// and the ceiling it is clamped to. Roughly the horizontal distance the
@@ -572,6 +583,72 @@ class _CupertinoLiquidGlassBottomBarState
   }
 
   // ---------------------------------------------------------------------------
+  // Label fitting
+  // ---------------------------------------------------------------------------
+
+  /// Memo inputs for [_resolveLabelFontSize] — measuring is only worth
+  /// redoing when the labels, the tab width, or the inherited style change.
+  List<String>? _fitLabels;
+  double _fitMaxWidth = -1.0;
+  TextStyle? _fitStyle;
+  TextScaler? _fitScaler;
+  double _labelFontSize = _kLabelFontSize;
+
+  /// Labels are laid out inside the selector pill, so one wider than the pill
+  /// spills over its edge while its tab is selected. Shrink every label by the
+  /// same factor — just enough for the widest to fit — so the bar keeps a
+  /// single consistent label size instead of one size per tab.
+  double _resolveLabelFontSize(
+    double tabWidth,
+    TextStyle baseStyle,
+    TextScaler scaler,
+    TextDirection direction,
+  ) {
+    final maxWidth = tabWidth * _kSelectorWidthFactor - _kLabelPadding * 2;
+    final labels = <String>[for (final item in widget.items) item.label];
+    if (_fitLabels != null &&
+        listEquals(labels, _fitLabels) &&
+        maxWidth == _fitMaxWidth &&
+        baseStyle == _fitStyle &&
+        scaler == _fitScaler) {
+      return _labelFontSize;
+    }
+
+    // Selected labels are the wide case (w600), so measure those: the size
+    // then stays put as the selection moves between tabs.
+    final style = baseStyle.merge(
+      const TextStyle(
+        fontSize: _kLabelFontSize,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    var widest = 0.0;
+    for (final label in labels) {
+      if (label.isEmpty) continue;
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: style),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      widest = math.max(widest, painter.width);
+      painter.dispose();
+    }
+
+    _fitLabels = labels;
+    _fitMaxWidth = maxWidth;
+    _fitStyle = baseStyle;
+    _fitScaler = scaler;
+    _labelFontSize = widest <= maxWidth
+        ? _kLabelFontSize
+        : math.max(
+            _kLabelFontSize * maxWidth / widest,
+            _kMinLabelFontSize,
+          );
+    return _labelFontSize;
+  }
+
+  // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
 
@@ -630,6 +707,13 @@ class _CupertinoLiquidGlassBottomBarState
             final inset = itemInset.clamp(0.0, constraints.maxWidth / 2);
             final contentWidth = constraints.maxWidth - inset * 2;
 
+            final labelFontSize = _resolveLabelFontSize(
+              contentWidth / widget.items.length,
+              DefaultTextStyle.of(context).style,
+              MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.0),
+              Directionality.of(context),
+            );
+
             return Listener(
               behavior: HitTestBehavior.translucent,
               onPointerDown: (e) => _onPointerDown(e, contentWidth, inset),
@@ -679,6 +763,7 @@ class _CupertinoLiquidGlassBottomBarState
                                   activeColor: resolvedActive,
                                   inactiveColor: resolvedInactive,
                                   isDark: isDark,
+                                  labelFontSize: labelFontSize,
                                 ),
                               ),
                             );
@@ -757,6 +842,7 @@ class _TabItem extends StatelessWidget {
   final Color activeColor;
   final Color inactiveColor;
   final bool isDark;
+  final double labelFontSize;
 
   const _TabItem({
     required this.item,
@@ -764,6 +850,7 @@ class _TabItem extends StatelessWidget {
     required this.activeColor,
     required this.inactiveColor,
     required this.isDark,
+    required this.labelFontSize,
   });
 
   @override
@@ -806,7 +893,7 @@ class _TabItem extends StatelessWidget {
               Text(
                 item.label,
                 style: TextStyle(
-                  fontSize: _kLabelFontSize,
+                  fontSize: labelFontSize,
                   fontWeight: fontWeight,
                   color: color,
                 ),
@@ -968,7 +1055,7 @@ class _SelectorPainter extends CustomPainter {
     final absVel = vel.abs().clamp(0.0, 20.0);
     final stretch = 1.0 + absVel / 55.0; // max ~1.36x
 
-    final baseWidth = tabWidth * 0.82;
+    final baseWidth = tabWidth * _kSelectorWidthFactor;
     final selectorWidth = (baseWidth * stretch).clamp(0.0, size.width - 4.0);
     // Keep the stretched pill inside the bar: at the edge tabs a fast fling
     // would otherwise push it under the rounded clip and slice it off flat.
