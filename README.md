@@ -256,6 +256,7 @@ A floating glass tab bar with safe-area handling.
 | `theme` | `LiquidGlassThemeData?` | auto | Glass theme override |
 | `borderRadius` | `BorderRadius?` | 26 px | Corner radius |
 | `horizontalMargin` | `double` | 8.0 | Horizontal margin from screen edges |
+| `itemInset` | `double?` | auto | Horizontal inset of the tab strip inside the bar, keeping the outer tabs clear of the corner arc. `null` derives it from the corner radius (0 on a square bar) |
 | `useSafeArea` | `bool` | true | Include home indicator padding |
 | `enableGlass` | `bool` | true | When false, the bar falls back to a solid Cupertino surface |
 | `bottomSpacing` | `double?` | auto | Extra clearance below the bar. `null` adds 6 dp on Android (gesture handle area), 0 elsewhere |

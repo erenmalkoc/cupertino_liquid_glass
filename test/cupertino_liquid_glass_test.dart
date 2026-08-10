@@ -294,5 +294,64 @@ void main() {
       await tester.pumpAndSettle();
       expect(tappedIndex, isNull);
     });
+
+    testWidgets('itemInset moves the outer tabs off the rounded ends', (
+      tester,
+    ) async {
+      Future<double> firstTabCenter(double inset) async {
+        await tester.pumpWidget(_bottomBarHarness(itemInset: inset));
+        return tester.getCenter(find.text('Home')).dx;
+      }
+
+      // Insetting the strip by `i` shifts an outer tab's centre by `i / 2`:
+      // it starts `i` further in but its share of the strip shrinks by `i / 2`.
+      final flush = await firstTabCenter(0.0);
+      final inset = await firstTabCenter(20.0);
+      expect(inset - flush, closeTo(10.0, 0.01));
+    });
+
+    testWidgets('taps on the inset margin still hit the outer tabs', (
+      tester,
+    ) async {
+      int? tappedIndex;
+      await tester.pumpWidget(
+        _bottomBarHarness(itemInset: 20.0, onTap: (i) => tappedIndex = i),
+      );
+
+      // The strip is inset but the gesture box still spans the full bar, so
+      // the dead-looking margin at each end belongs to its neighbouring tab.
+      final bar = tester.getRect(find.byType(CupertinoLiquidGlassBottomBar));
+      await tester.tapAt(Offset(bar.left + 10.0, bar.center.dy));
+      expect(tappedIndex, 0);
+
+      await tester.tapAt(Offset(bar.right - 10.0, bar.center.dy));
+      expect(tappedIndex, 1);
+    });
   });
+}
+
+Widget _bottomBarHarness({required double itemInset, ValueChanged<int>? onTap}) {
+  return CupertinoApp(
+    home: CupertinoPageScaffold(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          CupertinoLiquidGlassBottomBar(
+            itemInset: itemInset,
+            items: const [
+              LiquidGlassBottomBarItem(
+                icon: CupertinoIcons.home,
+                label: 'Home',
+              ),
+              LiquidGlassBottomBarItem(
+                icon: CupertinoIcons.search,
+                label: 'Search',
+              ),
+            ],
+            onTap: onTap ?? (_) {},
+          ),
+        ],
+      ),
+    ),
+  );
 }

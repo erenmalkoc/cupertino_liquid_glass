@@ -42,6 +42,12 @@ const double _kIconSize = 25.0;
 /// Label font size for tab bars.
 const double _kLabelFontSize = 10.0;
 
+/// Fraction of the corner radius used as the tab strip's horizontal inset,
+/// and the ceiling it is clamped to. Roughly the horizontal distance the
+/// corner arc travels across the label row.
+const double _kItemInsetRatio = 0.45;
+const double _kMaxItemInset = 14.0;
+
 /// Sliding window (ms) used to smooth the drag velocity for the stretch effect.
 const int _kVelocityWindowMs = 90;
 
@@ -111,6 +117,17 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
   /// Horizontal margin around the glass bar.
   final double horizontalMargin;
 
+  /// Horizontal inset between the glass edge and the tab strip.
+  ///
+  /// The bar's rounded ends curve inwards exactly where the first and last
+  /// tab's label sits, so a wide label (or a stretched selector pill) crosses
+  /// the border and reads as overflow. Insetting the strip keeps every tab
+  /// clear of the corner arc.
+  ///
+  /// When null (the default) the inset is derived from the corner radius, so
+  /// a square-cornered bar keeps its full width.
+  final double? itemInset;
+
   /// Whether to include the bottom safe-area padding (home indicator inset).
   final bool useSafeArea;
 
@@ -167,6 +184,7 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.theme,
     this.borderRadius,
     this.horizontalMargin = 8.0,
+    this.itemInset,
     this.useSafeArea = true,
     this.enableGlass = true,
     this.bottomSpacing,
@@ -395,10 +413,14 @@ class _CupertinoLiquidGlassBottomBarState
   /// not on release). The selection itself is still committed on tap-up /
   /// drag-end; if neither happens (gesture stolen by a parent recognizer),
   /// [_onPointerRelease] reverts the pill to [widget.currentIndex].
-  void _onPointerDown(PointerDownEvent event, double contentWidth) {
+  void _onPointerDown(
+    PointerDownEvent event,
+    double contentWidth,
+    double inset,
+  ) {
     if (_isDragging) return;
     final tabWidth = contentWidth / widget.items.length;
-    final index = (event.localPosition.dx / tabWidth).floor().clamp(
+    final index = ((event.localPosition.dx - inset) / tabWidth).floor().clamp(
       0,
       _maxIndex,
     );
@@ -408,10 +430,10 @@ class _CupertinoLiquidGlassBottomBarState
     }
   }
 
-  void _onTapUp(TapUpDetails details, double contentWidth) {
+  void _onTapUp(TapUpDetails details, double contentWidth, double inset) {
     _pendingPreMove = false;
     final tabWidth = contentWidth / widget.items.length;
-    final index = (details.localPosition.dx / tabWidth).floor().clamp(
+    final index = ((details.localPosition.dx - inset) / tabWidth).floor().clamp(
       0,
       _maxIndex,
     );
@@ -582,27 +604,39 @@ class _CupertinoLiquidGlassBottomBarState
         widget.inactiveColor ??
         (isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2);
 
+    final borderRadius =
+        widget.borderRadius ?? const BorderRadius.all(Radius.circular(26.0));
+
+    // The corner arc eats into the outer tabs' label row, so scale the strip's
+    // inset with the radius: enough clearance on a pill-shaped bar, none at all
+    // on a square one.
+    final itemInset =
+        widget.itemInset ??
+        (borderRadius.topLeft.x * _kItemInsetRatio).clamp(0.0, _kMaxItemInset);
+
     // Main glass bar (without outer padding so rubber banding only affects it).
     Widget mainBar = CupertinoLiquidGlass(
       theme: widget.theme,
       enabled: widget.enableGlass,
       effectIntensity: widget.effectIntensity,
-      borderRadius:
-          widget.borderRadius ?? const BorderRadius.all(Radius.circular(26.0)),
+      borderRadius: borderRadius,
       padding: EdgeInsets.zero,
       child: SizedBox(
         height: _kTabBarHeight,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final contentWidth = constraints.maxWidth;
+            // Gestures stay on the full-width box (no dead strip at the ends),
+            // so tap positions are measured against the inset strip instead.
+            final inset = itemInset.clamp(0.0, constraints.maxWidth / 2);
+            final contentWidth = constraints.maxWidth - inset * 2;
 
             return Listener(
               behavior: HitTestBehavior.translucent,
-              onPointerDown: (e) => _onPointerDown(e, contentWidth),
+              onPointerDown: (e) => _onPointerDown(e, contentWidth, inset),
               onPointerUp: _onPointerRelease,
               onPointerCancel: _onPointerRelease,
               child: GestureDetector(
-                onTapUp: (d) => _onTapUp(d, contentWidth),
+                onTapUp: (d) => _onTapUp(d, contentWidth, inset),
                 onHorizontalDragStart: _onDragStart,
                 onHorizontalDragUpdate: (d) => _onDragUpdate(d, contentWidth),
                 onHorizontalDragEnd: (d) => _onDragEnd(d, contentWidth),
@@ -617,36 +651,39 @@ class _CupertinoLiquidGlassBottomBarState
                   // overflowing (clipped pixels) at accessibility text sizes.
                   child: MediaQuery.withClampedTextScaling(
                     maxScaleFactor: 1.0,
-                    child: CustomPaint(
-                      painter: _SelectorPainter(
-                        position: _position,
-                        velocity: _velocity,
-                        tabCount: widget.items.length,
-                        activeColor: resolvedActive,
-                        selectorRadius: 16.0,
-                        isDark: isDark,
-                      ),
-                      willChange: true,
-                      child: Row(
-                        children: List.generate(widget.items.length, (i) {
-                          return Expanded(
-                            child: Semantics(
-                              container: true,
-                              button: true,
-                              selected: i == widget.currentIndex,
-                              label: widget.items[i].label,
-                              hint: 'Tab ${i + 1} of ${widget.items.length}',
-                              onTap: () => _selectTab(i),
-                              child: _TabItem(
-                                item: widget.items[i],
-                                proximity: _proximities[i],
-                                activeColor: resolvedActive,
-                                inactiveColor: resolvedInactive,
-                                isDark: isDark,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: inset),
+                      child: CustomPaint(
+                        painter: _SelectorPainter(
+                          position: _position,
+                          velocity: _velocity,
+                          tabCount: widget.items.length,
+                          activeColor: resolvedActive,
+                          selectorRadius: 16.0,
+                          isDark: isDark,
+                        ),
+                        willChange: true,
+                        child: Row(
+                          children: List.generate(widget.items.length, (i) {
+                            return Expanded(
+                              child: Semantics(
+                                container: true,
+                                button: true,
+                                selected: i == widget.currentIndex,
+                                label: widget.items[i].label,
+                                hint: 'Tab ${i + 1} of ${widget.items.length}',
+                                onTap: () => _selectTab(i),
+                                child: _TabItem(
+                                  item: widget.items[i],
+                                  proximity: _proximities[i],
+                                  activeColor: resolvedActive,
+                                  inactiveColor: resolvedInactive,
+                                  isDark: isDark,
+                                ),
                               ),
-                            ),
-                          );
-                        }),
+                            );
+                          }),
+                        ),
                       ),
                     ),
                   ),

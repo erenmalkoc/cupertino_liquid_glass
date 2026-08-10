@@ -1,3 +1,7 @@
+## 0.7.1
+
+* **Tab strip clears the rounded ends**: the bar's corner arc curves inwards exactly where the first and last tab's label sits, so a wide label (or a velocity-stretched selector pill) visibly crossed the border. The strip is now inset horizontally by a fraction of the corner radius — new `itemInset` parameter overrides it, and a square-cornered bar still uses the full width. Taps keep the full-width gesture box, so the inset margins belong to their neighbouring tabs.
+
 ## 0.7.0
 
 Performance & pixel-fidelity release: eliminates the transition stutter and per-device pixel artifacts reported on mid/low-end hardware, bringing the rendering pipeline much closer to native iOS materials.
