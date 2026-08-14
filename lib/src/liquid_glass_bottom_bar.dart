@@ -23,11 +23,20 @@ class LiquidGlassBottomBarItem {
   /// The label displayed below the icon.
   final String label;
 
+  /// Optional replacement for the icon glyph — e.g. a live user avatar.
+  /// Called with the tab's current tint [Color] (already interpolated
+  /// between inactive/active) and the Apple HIG icon size, so custom
+  /// content can echo the bar's selection styling. Falls back to
+  /// [icon]/[activeIcon] when null.
+  final Widget Function(BuildContext context, Color color, double size)?
+  iconBuilder;
+
   /// Creates a [LiquidGlassBottomBarItem].
   const LiquidGlassBottomBarItem({
     required this.icon,
     this.activeIcon,
     required this.label,
+    this.iconBuilder,
   });
 }
 
@@ -617,10 +626,7 @@ class _CupertinoLiquidGlassBottomBarState
     // Selected labels are the wide case (w600), so measure those: the size
     // then stays put as the selection moves between tabs.
     final style = baseStyle.merge(
-      const TextStyle(
-        fontSize: _kLabelFontSize,
-        fontWeight: FontWeight.w600,
-      ),
+      const TextStyle(fontSize: _kLabelFontSize, fontWeight: FontWeight.w600),
     );
     var widest = 0.0;
     for (final label in labels) {
@@ -641,10 +647,7 @@ class _CupertinoLiquidGlassBottomBarState
     _fitScaler = scaler;
     _labelFontSize = widest <= maxWidth
         ? _kLabelFontSize
-        : math.max(
-            _kLabelFontSize * maxWidth / widest,
-            _kMinLabelFontSize,
-          );
+        : math.max(_kLabelFontSize * maxWidth / widest, _kMinLabelFontSize);
     return _labelFontSize;
   }
 
@@ -874,21 +877,23 @@ class _TabItem extends StatelessWidget {
           // Dock-style magnification.
           final iconScale = 1.0 + proximity * 0.18;
 
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Transform.scale(
-                scale: iconScale,
-                child: _GlassIcon(
+          final iconBuilder = item.iconBuilder;
+          final iconWidget = iconBuilder != null
+              ? iconBuilder(context, color, _kIconSize)
+              : _GlassIcon(
                   icon: iconData,
                   color: color,
                   size: _kIconSize,
                   glassIntensity: proximity,
                   activeColor: activeColor,
                   isDark: isDark,
-                ),
-              ),
+                );
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Transform.scale(scale: iconScale, child: iconWidget),
               const SizedBox(height: 1.0),
               Text(
                 item.label,
