@@ -2,3 +2,9 @@ include: package:flutter_lints/flutter.yaml
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+# Flutter 3.47+ `pub get` adds these itself and leaves the tree dirty in CI
+# (breaks the publish dry-run), so they are checked in.
+analyzer:
+  exclude:
+    - build/**
