@@ -316,13 +316,20 @@ void main() {
       await tester.pumpWidget(
         _bottomBarHarness(
           itemInset: 0.0,
-          labels: const ['Hi', 'A tab label far too long to ever fit inside the selector pill'],
+          labels: const [
+            'Hi',
+            'A tab label far too long to ever fit inside the selector pill',
+          ],
         ),
       );
 
       final short = tester.widget<Text>(find.text('Hi')).style!.fontSize!;
       final long = tester
-          .widget<Text>(find.text('A tab label far too long to ever fit inside the selector pill'))
+          .widget<Text>(
+            find.text(
+              'A tab label far too long to ever fit inside the selector pill',
+            ),
+          )
           .style!
           .fontSize!;
 
