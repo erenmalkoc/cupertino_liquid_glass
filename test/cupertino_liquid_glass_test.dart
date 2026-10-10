@@ -366,11 +366,70 @@ void main() {
       await tester.tapAt(Offset(bar.right - 10.0, bar.center.dy));
       expect(tappedIndex, 1);
     });
+
+    testWidgets('dragging to the next tab commits it', (tester) async {
+      final taps = <int>[];
+      await tester.pumpWidget(_bottomBarHarness(onTap: taps.add));
+
+      await _slowDrag(
+        tester,
+        tester.getCenter(find.text('Home')),
+        tester.getCenter(find.text('Search')),
+      );
+      expect(taps, [1]);
+
+      // Once the rubber band settles the bar is back to an exact identity
+      // transform, which paints without a layer or any resampling.
+      final rubberBand = tester.widget<Transform>(
+        find
+            .ancestor(
+              of: find.byType(CupertinoLiquidGlass),
+              matching: find.byType(Transform),
+            )
+            .first,
+      );
+      expect(MatrixUtils.isIdentity(rubberBand.transform), isTrue);
+    });
+
+    testWidgets('rubber banding does not remount the bar mid-drag', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_bottomBarHarness());
+      final glass = tester.renderObject(find.byType(BackdropFilter));
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('Home')),
+      );
+      for (var i = 0; i < 6; i++) {
+        await gesture.moveBy(const Offset(12.0, 0.0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      // Rebuilding the bar under a new parent would dispose the drag
+      // recognizer and cancel the gesture.
+      expect(tester.renderObject(find.byType(BackdropFilter)), same(glass));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
   });
 }
 
+/// Drags slowly enough that the release is not a fling, so the selection is
+/// decided by where the finger stops.
+Future<void> _slowDrag(WidgetTester tester, Offset from, Offset to) async {
+  final gesture = await tester.startGesture(from);
+  const steps = 20;
+  for (var i = 1; i <= steps; i++) {
+    await gesture.moveTo(Offset.lerp(from, to, i / steps)!);
+    await tester.pump(const Duration(milliseconds: 32));
+  }
+  await tester.pump(const Duration(milliseconds: 200));
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
+
 Widget _bottomBarHarness({
-  required double itemInset,
+  double? itemInset,
   ValueChanged<int>? onTap,
   List<String> labels = const ['Home', 'Search'],
 }) {

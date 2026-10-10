@@ -787,13 +787,17 @@ class _CupertinoLiquidGlassBottomBarState
     // AnimatedBuilder rebuilds only the Transform — `mainBar` stays cached.
     // The near-1.0 snap matters: a spring settles within tolerance, not at
     // exactly 1.0, and a lingering ~0.999 Transform would permanently
-    // resample the bar (soft text, shimmering hairlines).
+    // resample the bar (soft text, shimmering hairlines). An exact identity
+    // Transform paints as a plain offset, with no layer and no resampling.
+    //
+    // The Transform stays mounted at rest: swapping it in and out changes
+    // the tree depth, so the first rubber-band frame would remount the whole
+    // bar, dispose the drag recognizer and cancel the drag.
     mainBar = AnimatedBuilder(
       animation: _elasticController,
       builder: (context, child) {
         final value = _elasticController.value;
         final scale = (value - 1.0).abs() < 0.0015 ? 1.0 : value;
-        if (scale == 1.0) return child!;
         return Transform.scale(
           scale: scale,
           alignment: Alignment.bottomCenter,
