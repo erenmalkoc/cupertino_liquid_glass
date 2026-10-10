@@ -585,7 +585,12 @@ class LiquidGlassBloom extends StatelessWidget {
   /// The color of the bloom glow.
   final Color color;
 
-  /// The blur radius of the bloom effect.
+  /// Has no effect. Since 0.7.0 the bloom is a radial gradient (no blur pass)
+  /// whose size comes from [spread].
+  @Deprecated(
+    'Has no effect since 0.7.0; the bloom is a radial gradient sized by '
+    'spread. Will be removed in 1.0.0.',
+  )
   final double radius;
 
   /// The spread of the bloom beyond the child bounds.
@@ -599,6 +604,10 @@ class LiquidGlassBloom extends StatelessWidget {
     super.key,
     required this.child,
     required this.color,
+    @Deprecated(
+      'Has no effect since 0.7.0; the bloom is a radial gradient sized by '
+      'spread. Will be removed in 1.0.0.',
+    )
     this.radius = 20.0,
     this.spread = 8.0,
     this.intensity = 0.5,
