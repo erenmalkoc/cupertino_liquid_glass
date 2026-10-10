@@ -245,6 +245,10 @@ class _CupertinoLiquidGlassBottomBarState
   /// Latched in [build]; when true, springs and rubber banding are skipped.
   bool _reduceMotion = false;
 
+  /// Latched in [build]; in RTL the [Row] lays tab 0 out on the right, so hit
+  /// positions, drag directions and the selector pill are mirrored.
+  bool _isRtl = false;
+
   /// Sliding window of recent drag samples for velocity smoothing.
   /// A [Queue] so pruning old samples from the front is O(1).
   final Queue<_VelocitySample> _velocitySamples = Queue<_VelocitySample>();
@@ -439,11 +443,7 @@ class _CupertinoLiquidGlassBottomBarState
     double inset,
   ) {
     if (_isDragging) return;
-    final tabWidth = contentWidth / widget.items.length;
-    final index = ((event.localPosition.dx - inset) / tabWidth).floor().clamp(
-      0,
-      _maxIndex,
-    );
+    final index = _indexAt(event.localPosition.dx, contentWidth, inset);
     if (index != _position.value.round()) {
       _pendingPreMove = true;
       _animateTo(index);
@@ -452,13 +452,14 @@ class _CupertinoLiquidGlassBottomBarState
 
   void _onTapUp(TapUpDetails details, double contentWidth, double inset) {
     _pendingPreMove = false;
-    final tabWidth = contentWidth / widget.items.length;
-    final index = ((details.localPosition.dx - inset) / tabWidth).floor().clamp(
-      0,
-      _maxIndex,
-    );
+    _selectTab(_indexAt(details.localPosition.dx, contentWidth, inset));
+  }
 
-    _selectTab(index);
+  /// Maps a horizontal hit position to the logical index of the tab under it.
+  int _indexAt(double dx, double contentWidth, double inset) {
+    final tabWidth = contentWidth / widget.items.length;
+    final slot = ((dx - inset) / tabWidth).floor().clamp(0, _maxIndex);
+    return _isRtl ? _maxIndex - slot : slot;
   }
 
   void _onDragStart(DragStartDetails details) {
@@ -484,7 +485,8 @@ class _CupertinoLiquidGlassBottomBarState
   void _onDragUpdate(DragUpdateDetails details, double contentWidth) {
     final tabWidth = contentWidth / widget.items.length;
     final dx = details.delta.dx;
-    final delta = dx / tabWidth;
+    // The logical index grows leftwards in RTL.
+    final delta = (_isRtl ? -dx : dx) / tabWidth;
 
     // Track samples for smoothed velocity. Skip sub-pixel jitter so the
     // stretch effect doesn't shimmer. The clock domain latched at drag
@@ -536,7 +538,8 @@ class _CupertinoLiquidGlassBottomBarState
   void _onDragEnd(DragEndDetails details, double contentWidth) {
     _isDragging = false;
     final tabWidth = contentWidth / widget.items.length;
-    final flingVelocity = details.velocity.pixelsPerSecond.dx / tabWidth;
+    final vx = details.velocity.pixelsPerSecond.dx;
+    final flingVelocity = (_isRtl ? -vx : vx) / tabWidth;
 
     int target = _position.value.round();
     if (flingVelocity.abs() > 3.0) {
@@ -677,6 +680,7 @@ class _CupertinoLiquidGlassBottomBarState
         CupertinoTheme.maybeBrightnessOf(context) ?? Brightness.light;
     final isDark = brightness == Brightness.dark;
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
+    _isRtl = Directionality.of(context) == TextDirection.rtl;
 
     final resolvedActive =
         widget.activeColor ?? CupertinoTheme.of(context).primaryColor;
@@ -748,6 +752,7 @@ class _CupertinoLiquidGlassBottomBarState
                           activeColor: resolvedActive,
                           selectorRadius: 16.0,
                           isDark: isDark,
+                          isRtl: _isRtl,
                         ),
                         willChange: true,
                         child: Row(
@@ -1028,6 +1033,10 @@ class _SelectorPainter extends CustomPainter {
   final double selectorRadius;
   final bool isDark;
 
+  /// Whether the tabs run right to left, so logical position 0 is the
+  /// rightmost slot.
+  final bool isRtl;
+
   _SelectorPainter({
     required this.position,
     required this.velocity,
@@ -1035,6 +1044,7 @@ class _SelectorPainter extends CustomPainter {
     required this.activeColor,
     required this.selectorRadius,
     required this.isDark,
+    required this.isRtl,
   }) : super(repaint: Listenable.merge([position, velocity]));
 
   /// Cached fill paint (constant per painter instance).
@@ -1055,7 +1065,8 @@ class _SelectorPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (tabCount == 0) return;
 
-    final pos = position.value;
+    // Visual slot of the logical position (mirrored in RTL).
+    final pos = isRtl ? (tabCount - 1) - position.value : position.value;
     final vel = velocity.value;
 
     final tabWidth = size.width / tabCount;
@@ -1121,5 +1132,6 @@ class _SelectorPainter extends CustomPainter {
   bool shouldRepaint(_SelectorPainter old) =>
       tabCount != old.tabCount ||
       activeColor != old.activeColor ||
-      isDark != old.isDark;
+      isDark != old.isDark ||
+      isRtl != old.isRtl;
 }

@@ -413,6 +413,82 @@ void main() {
     });
   });
 
+  group('CupertinoLiquidGlassBottomBar in RTL', () {
+    const labels = ['Home', 'Search', 'Settings'];
+
+    testWidgets('taps report the logical index of the tapped tab', (
+      tester,
+    ) async {
+      final taps = <int>[];
+      await tester.pumpWidget(
+        _bottomBarHarness(
+          labels: labels,
+          textDirection: TextDirection.rtl,
+          onTap: taps.add,
+        ),
+      );
+      // Tab 0 is laid out on the right.
+      expect(
+        tester.getCenter(find.text('Home')).dx,
+        greaterThan(tester.getCenter(find.text('Settings')).dx),
+      );
+
+      await tester.tap(find.text('Home'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      expect(taps, [0, 2]);
+    });
+
+    testWidgets('dragging to the next tab commits it', (tester) async {
+      final taps = <int>[];
+      await tester.pumpWidget(
+        _bottomBarHarness(
+          labels: labels,
+          textDirection: TextDirection.rtl,
+          onTap: taps.add,
+        ),
+      );
+
+      await _slowDrag(
+        tester,
+        tester.getCenter(find.text('Home')),
+        tester.getCenter(find.text('Search')),
+      );
+      expect(taps, [1]);
+    });
+
+    testWidgets('the selector pill sits under the selected tab', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _bottomBarHarness(labels: labels, textDirection: TextDirection.rtl),
+      );
+
+      // The pill painter is the closest CustomPaint above the tab labels.
+      final selector = tester.renderObject<RenderBox>(
+        find
+            .ancestor(of: find.text('Home'), matching: find.byType(CustomPaint))
+            .first,
+      );
+      final pills = <RRect>[];
+      expect(
+        selector,
+        paints..everything((method, arguments) {
+          if (method == #drawRRect) pills.add(arguments.first as RRect);
+          return true;
+        }),
+      );
+
+      // Every layer of the pill (glow rings, fill, highlight) shares a centre.
+      expect(pills, isNotEmpty);
+      expect(
+        selector.localToGlobal(pills.first.center).dx,
+        closeTo(tester.getCenter(find.text('Home')).dx, 0.5),
+      );
+    });
+  });
+
   group('platform dark mode with no theme brightness', () {
     // CupertinoApp leaves CupertinoThemeData.brightness null, and Cupertino
     // widgets then follow the platform brightness. The glass must do the same.
@@ -539,8 +615,11 @@ Widget _bottomBarHarness({
   double? itemInset,
   ValueChanged<int>? onTap,
   List<String> labels = const ['Home', 'Search'],
+  TextDirection textDirection = TextDirection.ltr,
 }) {
   return CupertinoApp(
+    builder: (context, child) =>
+        Directionality(textDirection: textDirection, child: child!),
     home: CupertinoPageScaffold(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
