@@ -674,7 +674,7 @@ class _CupertinoLiquidGlassBottomBarState
     final bottomPadding = widget.useSafeArea ? systemInset + extra : extra;
 
     final brightness =
-        CupertinoTheme.of(context).brightness ?? Brightness.light;
+        CupertinoTheme.maybeBrightnessOf(context) ?? Brightness.light;
     final isDark = brightness == Brightness.dark;
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
 

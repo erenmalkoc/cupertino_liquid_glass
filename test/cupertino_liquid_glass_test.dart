@@ -412,6 +412,113 @@ void main() {
       await tester.pumpAndSettle();
     });
   });
+
+  group('platform dark mode with no theme brightness', () {
+    // CupertinoApp leaves CupertinoThemeData.brightness null, and Cupertino
+    // widgets then follow the platform brightness. The glass must do the same.
+    void useDarkPlatform(WidgetTester tester) {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    }
+
+    testWidgets('CupertinoLiquidGlass uses the dark preset', (tester) async {
+      useDarkPlatform(tester);
+      await tester.pumpWidget(
+        const CupertinoApp(
+          home: Center(
+            child: CupertinoLiquidGlass(
+              // No vibrancy, so the filter is the preset's plain blur.
+              effectIntensity: 0.0,
+              child: SizedBox(width: 40, height: 40),
+            ),
+          ),
+        ),
+      );
+
+      final sigma = LiquidGlassThemeData.dark().blurSigma;
+      expect(
+        tester.widget<BackdropFilter>(find.byType(BackdropFilter)).filter,
+        ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+      );
+    });
+
+    testWidgets('the solid fallback uses the dark system grey', (tester) async {
+      useDarkPlatform(tester);
+      await tester.pumpWidget(const CupertinoApp(home: _SolidGlass()));
+      expect(_solidColor(tester), const Color(0xFF1C1C1E));
+    });
+
+    testWidgets('an explicit theme brightness still wins', (tester) async {
+      useDarkPlatform(tester);
+      await tester.pumpWidget(
+        const CupertinoApp(
+          theme: CupertinoThemeData(brightness: Brightness.light),
+          home: _SolidGlass(),
+        ),
+      );
+      expect(_solidColor(tester), const Color(0xFFF2F2F7));
+    });
+
+    testWidgets('LiquidGlassDetachedButton uses the dark glass', (
+      tester,
+    ) async {
+      useDarkPlatform(tester);
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: Center(
+            child: LiquidGlassDetachedButton(
+              onTap: () {},
+              child: const Icon(CupertinoIcons.plus),
+            ),
+          ),
+        ),
+      );
+
+      final glass = tester.widget<CupertinoLiquidGlass>(
+        find.byType(CupertinoLiquidGlass),
+      );
+      expect(glass.theme!.tintColor, LiquidGlassThemeData.dark().tintColor);
+    });
+
+    testWidgets('the bottom bar uses the dark inactive tab color', (
+      tester,
+    ) async {
+      useDarkPlatform(tester);
+      await tester.pumpWidget(_bottomBarHarness());
+
+      final inactiveLabel = tester.widget<Text>(find.text('Search'));
+      expect(
+        inactiveLabel.style!.color,
+        isSameColorAs(CupertinoColors.systemGrey),
+      );
+    });
+  });
+}
+
+/// A glass surface with the solid (glass disabled) fallback.
+class _SolidGlass extends StatelessWidget {
+  const _SolidGlass();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: CupertinoLiquidGlass(
+        enabled: false,
+        child: SizedBox(width: 40, height: 40),
+      ),
+    );
+  }
+}
+
+/// The background color of the solid fallback surface.
+Color? _solidColor(WidgetTester tester) {
+  final box = tester.widget<Container>(
+    find.descendant(
+      of: find.byType(CupertinoLiquidGlass),
+      matching: find.byType(Container),
+    ),
+  );
+  return (box.decoration! as BoxDecoration).color;
 }
 
 /// Drags slowly enough that the release is not a fling, so the selection is

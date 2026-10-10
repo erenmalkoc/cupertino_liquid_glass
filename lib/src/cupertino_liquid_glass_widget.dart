@@ -129,8 +129,11 @@ class CupertinoLiquidGlass extends StatelessWidget {
   /// either the supplied [theme] or the brightness-derived default, then
   /// applying [effectIntensity].
   LiquidGlassThemeData _resolveTheme(BuildContext context) {
+    // Not `CupertinoTheme.of(context).brightness`: that stays null when the
+    // app sets no brightness (a plain CupertinoApp), while Cupertino widgets
+    // follow the platform brightness. maybeBrightnessOf falls back the same way.
     final brightness =
-        CupertinoTheme.of(context).brightness ?? Brightness.light;
+        CupertinoTheme.maybeBrightnessOf(context) ?? Brightness.light;
     final base =
         theme ??
         (brightness == Brightness.dark
@@ -228,7 +231,7 @@ class CupertinoLiquidGlass extends StatelessWidget {
   /// sampling, so it can be used as a cheap fallback on low-end devices.
   Widget _buildDisabled(BuildContext context, LiquidGlassThemeData resolved) {
     final brightness =
-        CupertinoTheme.of(context).brightness ?? Brightness.light;
+        CupertinoTheme.maybeBrightnessOf(context) ?? Brightness.light;
     // Mirror CupertinoColors.systemGrey6 light/dark values directly — avoids
     // depending on an ambient CupertinoTheme for color resolution.
     final solid =
@@ -788,7 +791,7 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
   @override
   Widget build(BuildContext context) {
     final brightness =
-        CupertinoTheme.of(context).brightness ?? Brightness.light;
+        CupertinoTheme.maybeBrightnessOf(context) ?? Brightness.light;
     final isDark = brightness == Brightness.dark;
     final borderRadius = BorderRadius.circular(widget.size / 2);
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
