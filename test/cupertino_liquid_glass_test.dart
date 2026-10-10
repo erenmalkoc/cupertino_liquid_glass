@@ -176,6 +176,44 @@ void main() {
       await tester.pumpWidget(buildTestWidget(brightness: Brightness.dark));
       expect(find.byType(CupertinoLiquidGlass), findsOneWidget);
     });
+
+    testWidgets('paints radial and sweep specular gradients', (tester) async {
+      Future<int> rectCount(Gradient gradient) async {
+        await tester.pumpWidget(
+          CupertinoApp(
+            home: Center(
+              child: CupertinoLiquidGlass(
+                specularGradient: gradient,
+                child: const SizedBox(width: 100, height: 60),
+              ),
+            ),
+          ),
+        );
+        // The layered surface painter sits right under the backdrop filter.
+        final surface = tester.renderObject(
+          find
+              .descendant(
+                of: find.byType(BackdropFilter),
+                matching: find.byType(CustomPaint),
+              )
+              .first,
+        );
+        var rects = 0;
+        expect(
+          surface,
+          paints..everything((method, arguments) {
+            if (method == #drawRect) rects++;
+            return true;
+          }),
+        );
+        return rects;
+      }
+
+      const colors = [Color(0xFFFFFFFF), Color(0x00FFFFFF)];
+      final linear = await rectCount(const LinearGradient(colors: colors));
+      expect(await rectCount(const RadialGradient(colors: colors)), linear);
+      expect(await rectCount(const SweepGradient(colors: colors)), linear);
+    });
   });
 
   group('CupertinoLiquidGlassNavBar', () {

@@ -394,19 +394,15 @@ class _GlassBackgroundPainter extends CustomPainter {
       Paint()..color = theme.tintColor.withValues(alpha: theme.tintOpacity),
     );
 
-    // 2. Specular gradient — the "liquid" sheen.
-    if (theme.specularGradient case final LinearGradient src) {
+    // 2. Specular gradient — the "liquid" sheen. Gradient.scale fades every
+    //    stop by specularOpacity for any gradient type (radial and sweep
+    //    included) and keeps the source's stops, tileMode and transform.
+    final specular = theme.specularGradient;
+    if (specular != null && theme.specularOpacity > 0) {
       canvas.drawRect(
         rect,
         Paint()
-          ..shader = LinearGradient(
-            begin: src.begin,
-            end: src.end,
-            colors: src.colors
-                .map((c) => c.withValues(alpha: c.a * theme.specularOpacity))
-                .toList(),
-            stops: src.stops,
-          ).createShader(rect),
+          ..shader = specular.scale(theme.specularOpacity).createShader(rect),
       );
     }
 
