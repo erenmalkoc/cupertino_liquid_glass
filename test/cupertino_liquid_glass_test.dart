@@ -216,6 +216,41 @@ void main() {
     });
   });
 
+  group('LiquidGlassDetachedButton', () {
+    testWidgets('pressing does not remount the glass', (tester) async {
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: Center(
+            child: LiquidGlassDetachedButton(
+              onTap: () {},
+              child: const Icon(CupertinoIcons.plus),
+            ),
+          ),
+        ),
+      );
+      final glass = tester.renderObject(find.byType(BackdropFilter));
+      final scrim = find.descendant(
+        of: find.byType(LiquidGlassDetachedButton),
+        matching: find.byType(ColoredBox),
+      );
+      expect(scrim, findsNothing);
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(LiquidGlassDetachedButton)),
+      );
+      // The first frame starts the press animation, the second advances it.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(scrim, findsOneWidget);
+      expect(tester.renderObject(find.byType(BackdropFilter)), same(glass));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(scrim, findsNothing);
+      expect(tester.renderObject(find.byType(BackdropFilter)), same(glass));
+    });
+  });
+
   group('CupertinoLiquidGlassNavBar', () {
     testWidgets('renders title', (tester) async {
       await tester.pumpWidget(

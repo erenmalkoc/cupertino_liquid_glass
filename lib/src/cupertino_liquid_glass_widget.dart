@@ -844,25 +844,29 @@ class _LiquidGlassDetachedButtonState extends State<LiquidGlassDetachedButton>
           // The pressed state is a scale plus a scrim painted *inside* the
           // glass. An Opacity widget here would force a saveLayer of the
           // whole backdrop-filtered subtree on every animation frame.
+          //
+          // The Transform and Stack stay mounted at rest (an identity
+          // Transform paints as a plain offset): swapping them in and out
+          // would remount the glass, and its backdrop layer, on every press.
           builder: (context, child) {
             final t = _press.value;
-            if (t == 0.0) return child!;
             return Transform.scale(
               scale: ui.lerpDouble(1.0, 0.88, t)!,
               child: Stack(
                 fit: StackFit.passthrough,
                 children: [
                   child!,
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: ClipRRect(
-                        borderRadius: borderRadius,
-                        child: ColoredBox(
-                          color: Color.fromRGBO(0, 0, 0, 0.10 * t),
+                  if (t > 0.0)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: ClipRRect(
+                          borderRadius: borderRadius,
+                          child: ColoredBox(
+                            color: Color.fromRGBO(0, 0, 0, 0.10 * t),
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             );
