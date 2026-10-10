@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:cupertino_liquid_glass/cupertino_liquid_glass.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -411,6 +412,59 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
     });
+
+    testWidgets('each tab announces its label once', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _bottomBarHarness(labels: const ['Home', 'Search', 'Settings']),
+      );
+
+      expect(
+        tester.getSemantics(find.text('Home')),
+        matchesSemantics(
+          label: 'Home',
+          hint: 'Tab 1 of 3',
+          isButton: true,
+          hasSelectedState: true,
+          isSelected: true,
+          hasTapAction: true,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.text('Search')),
+        matchesSemantics(
+          label: 'Search',
+          hint: 'Tab 2 of 3',
+          isButton: true,
+          hasSelectedState: true,
+          hasTapAction: true,
+        ),
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('takes the tab hint from CupertinoLocalizations', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _bottomBarHarness(
+          localizationsDelegates: const [_TabHintLocalizations.delegate],
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.text('Search')),
+        matchesSemantics(
+          label: 'Search',
+          hint: 'tab 2/2',
+          isButton: true,
+          hasSelectedState: true,
+          hasTapAction: true,
+        ),
+      );
+      semantics.dispose();
+    });
   });
 
   group('CupertinoLiquidGlassBottomBar in RTL', () {
@@ -611,13 +665,42 @@ Future<void> _slowDrag(WidgetTester tester, Offset from, Offset to) async {
   await tester.pumpAndSettle();
 }
 
+/// English Cupertino strings with a recognisable tab hint.
+class _TabHintLocalizations extends DefaultCupertinoLocalizations {
+  const _TabHintLocalizations();
+
+  static const LocalizationsDelegate<CupertinoLocalizations> delegate =
+      _TabHintLocalizationsDelegate();
+
+  @override
+  String tabSemanticsLabel({required int tabIndex, required int tabCount}) =>
+      'tab $tabIndex/$tabCount';
+}
+
+class _TabHintLocalizationsDelegate
+    extends LocalizationsDelegate<CupertinoLocalizations> {
+  const _TabHintLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<CupertinoLocalizations> load(Locale locale) =>
+      SynchronousFuture<CupertinoLocalizations>(const _TabHintLocalizations());
+
+  @override
+  bool shouldReload(_TabHintLocalizationsDelegate old) => false;
+}
+
 Widget _bottomBarHarness({
   double? itemInset,
   ValueChanged<int>? onTap,
   List<String> labels = const ['Home', 'Search'],
   TextDirection textDirection = TextDirection.ltr,
+  Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
 }) {
   return CupertinoApp(
+    localizationsDelegates: localizationsDelegates,
     builder: (context, child) =>
         Directionality(textDirection: textDirection, child: child!),
     home: CupertinoPageScaffold(

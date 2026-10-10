@@ -682,6 +682,13 @@ class _CupertinoLiquidGlassBottomBarState
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
     _isRtl = Directionality.of(context) == TextDirection.rtl;
 
+    // The same "Tab X of N" hint as CupertinoTabBar, so apps that ship
+    // GlobalCupertinoLocalizations get it translated.
+    final localizations = Localizations.of<CupertinoLocalizations>(
+      context,
+      CupertinoLocalizations,
+    );
+
     final resolvedActive =
         widget.activeColor ?? CupertinoTheme.of(context).primaryColor;
     final resolvedInactive =
@@ -763,15 +770,24 @@ class _CupertinoLiquidGlassBottomBarState
                                 button: true,
                                 selected: i == widget.currentIndex,
                                 label: widget.items[i].label,
-                                hint: 'Tab ${i + 1} of ${widget.items.length}',
+                                hint:
+                                    localizations?.tabSemanticsLabel(
+                                      tabIndex: i + 1,
+                                      tabCount: widget.items.length,
+                                    ) ??
+                                    'Tab ${i + 1} of ${widget.items.length}',
                                 onTap: () => _selectTab(i),
-                                child: _TabItem(
-                                  item: widget.items[i],
-                                  proximity: _proximities[i],
-                                  activeColor: resolvedActive,
-                                  inactiveColor: resolvedInactive,
-                                  isDark: isDark,
-                                  labelFontSize: labelFontSize,
+                                // This node already carries the label; the
+                                // visible Text would announce it a second time.
+                                child: ExcludeSemantics(
+                                  child: _TabItem(
+                                    item: widget.items[i],
+                                    proximity: _proximities[i],
+                                    activeColor: resolvedActive,
+                                    inactiveColor: resolvedInactive,
+                                    isDark: isDark,
+                                    labelFontSize: labelFontSize,
+                                  ),
                                 ),
                               ),
                             );
