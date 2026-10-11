@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:cupertino_liquid_glass/cupertino_liquid_glass.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -133,6 +134,9 @@ void main() {
       Brightness brightness = Brightness.light,
       LiquidGlassThemeData? theme,
       double? blurSigma,
+      double effectIntensity = 1.0,
+      bool enabled = true,
+      Color? disabledColor,
     }) {
       return CupertinoApp(
         theme: CupertinoThemeData(brightness: brightness),
@@ -141,6 +145,9 @@ void main() {
             child: CupertinoLiquidGlass(
               theme: theme,
               blurSigma: blurSigma,
+              effectIntensity: effectIntensity,
+              enabled: enabled,
+              disabledColor: disabledColor,
               child: const Text('Glass'),
             ),
           ),
@@ -164,17 +171,44 @@ void main() {
     });
 
     testWidgets('applies explicit blurSigma override', (tester) async {
-      await tester.pumpWidget(buildTestWidget(blurSigma: 10.0));
+      // No vibrancy, so the filter is exactly the requested blur.
+      await tester.pumpWidget(
+        buildTestWidget(blurSigma: 10.0, effectIntensity: 0.0),
+      );
       final backdrop = tester.widget<BackdropFilter>(
         find.byType(BackdropFilter),
       );
-      final filter = backdrop.filter as ImageFilter;
-      expect(filter, isNotNull);
+      expect(backdrop.filter, ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0));
     });
 
     testWidgets('adapts to dark mode', (tester) async {
-      await tester.pumpWidget(buildTestWidget(brightness: Brightness.dark));
-      expect(find.byType(CupertinoLiquidGlass), findsOneWidget);
+      await tester.pumpWidget(
+        buildTestWidget(brightness: Brightness.dark, effectIntensity: 0.0),
+      );
+      final sigma = LiquidGlassThemeData.dark().blurSigma;
+      expect(
+        tester.widget<BackdropFilter>(find.byType(BackdropFilter)).filter,
+        ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+      );
+
+      await tester.pumpWidget(
+        buildTestWidget(brightness: Brightness.dark, enabled: false),
+      );
+      expect(_solidColor(tester), const Color(0xFF1C1C1E));
+    });
+
+    testWidgets('enabled: false draws a solid surface without a backdrop', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTestWidget(enabled: false));
+      expect(find.byType(BackdropFilter), findsNothing);
+      expect(find.text('Glass'), findsOneWidget);
+      expect(_solidColor(tester), const Color(0xFFF2F2F7));
+
+      await tester.pumpWidget(
+        buildTestWidget(enabled: false, disabledColor: const Color(0xFF123456)),
+      );
+      expect(_solidColor(tester), const Color(0xFF123456));
     });
 
     testWidgets('paints radial and sweep specular gradients', (tester) async {
@@ -249,6 +283,63 @@ void main() {
       expect(scrim, findsNothing);
       expect(tester.renderObject(find.byType(BackdropFilter)), same(glass));
     });
+
+    testWidgets('a tap calls onTap and the label is announced', (tester) async {
+      final semantics = tester.ensureSemantics();
+      var taps = 0;
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: Center(
+            child: LiquidGlassDetachedButton(
+              onTap: () => taps++,
+              semanticLabel: 'Add',
+              child: const Icon(CupertinoIcons.plus),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(LiquidGlassDetachedButton));
+      await tester.pumpAndSettle();
+      expect(taps, 1);
+      expect(
+        tester.getSemantics(find.byType(LiquidGlassDetachedButton)),
+        matchesSemantics(label: 'Add', isButton: true, hasTapAction: true),
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('enableGlass: false drops the backdrop and the sweep', (
+      tester,
+    ) async {
+      Future<void> pumpButton({required bool enableGlass}) {
+        return tester.pumpWidget(
+          CupertinoApp(
+            home: Center(
+              child: LiquidGlassDetachedButton(
+                onTap: () {},
+                enableGlass: enableGlass,
+                child: const Icon(CupertinoIcons.plus),
+              ),
+            ),
+          ),
+        );
+      }
+
+      final sweep = find.byWidgetPredicate(
+        (widget) =>
+            widget is CustomPaint &&
+            widget.painter.runtimeType.toString() == '_IridescentPainter',
+      );
+
+      await pumpButton(enableGlass: true);
+      expect(find.byType(BackdropFilter), findsOneWidget);
+      expect(sweep, findsOneWidget);
+
+      await pumpButton(enableGlass: false);
+      expect(find.byType(BackdropFilter), findsNothing);
+      expect(sweep, findsNothing);
+    });
   });
 
   group('CupertinoLiquidGlassNavBar', () {
@@ -263,6 +354,24 @@ void main() {
         ),
       );
       expect(find.text('Nav Title'), findsOneWidget);
+    });
+
+    testWidgets('marks the title as a header', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        const CupertinoApp(
+          home: CupertinoPageScaffold(
+            child: Column(
+              children: [CupertinoLiquidGlassNavBar(title: Text('Nav Title'))],
+            ),
+          ),
+        ),
+      );
+      expect(
+        tester.getSemantics(find.text('Nav Title')),
+        matchesSemantics(label: 'Nav Title', isHeader: true),
+      );
+      semantics.dispose();
     });
   });
 
@@ -538,6 +647,115 @@ void main() {
       );
       semantics.dispose();
     });
+
+    testWidgets('iconBuilder replaces the glyph with the tab tint and size', (
+      tester,
+    ) async {
+      final calls = <(Color, double)>[];
+      await tester.pumpWidget(
+        _bottomBarHarness(
+          iconBuilder: (context, color, size) {
+            calls.add((color, size));
+            return const SizedBox(key: ValueKey('avatar'));
+          },
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('avatar')), findsNWidgets(2));
+      expect(find.byType(Icon), findsNothing);
+      expect(calls.map((call) => call.$2), everyElement(25.0));
+      // The builder sees the same interpolated tint as the tab's label.
+      final colors = calls.map((call) => call.$1).toSet();
+      expect(colors, {
+        tester.widget<Text>(find.text('Home')).style!.color,
+        tester.widget<Text>(find.text('Search')).style!.color,
+      });
+    });
+
+    testWidgets('Reduce Motion skips the rubber-band stretch', (tester) async {
+      await tester.pumpWidget(_bottomBarHarness(disableAnimations: true));
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('Home')),
+      );
+      for (var i = 0; i < 6; i++) {
+        await gesture.moveBy(const Offset(12.0, 0.0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      final rubberBand = tester.widget<Transform>(
+        find
+            .ancestor(
+              of: find.byType(CupertinoLiquidGlass),
+              matching: find.byType(Transform),
+            )
+            .first,
+      );
+      expect(MatrixUtils.isIdentity(rubberBand.transform), isTrue);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('CupertinoLiquidGlassBottomBar haptics', () {
+    late List<Object?> haptics;
+
+    setUp(() {
+      haptics = <Object?>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'HapticFeedback.vibrate') {
+              haptics.add(call.arguments);
+            }
+            return null;
+          });
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    testWidgets('a tap on another tab clicks once', (tester) async {
+      await tester.pumpWidget(_bottomBarHarness());
+      await tester.tap(find.text('Search'));
+      await tester.pumpAndSettle();
+      expect(haptics, ['HapticFeedbackType.selectionClick']);
+    });
+
+    testWidgets('re-tapping the current tab stays silent', (tester) async {
+      await tester.pumpWidget(_bottomBarHarness());
+      await tester.tap(find.text('Home'));
+      await tester.pumpAndSettle();
+      expect(haptics, isEmpty);
+    });
+
+    testWidgets('enableHaptics: false stays silent', (tester) async {
+      await tester.pumpWidget(_bottomBarHarness(enableHaptics: false));
+      await tester.tap(find.text('Search'));
+      await tester.pumpAndSettle();
+      await _slowDrag(
+        tester,
+        tester.getCenter(find.text('Home')),
+        tester.getCenter(find.text('Search')),
+      );
+      expect(haptics, isEmpty);
+    });
+
+    testWidgets('dragging ticks once per crossed tab boundary', (tester) async {
+      await tester.pumpWidget(
+        _bottomBarHarness(labels: const ['Home', 'Search', 'Settings']),
+      );
+      await _slowDrag(
+        tester,
+        tester.getCenter(find.text('Home')),
+        tester.getCenter(find.text('Settings')),
+      );
+      expect(haptics, [
+        'HapticFeedbackType.selectionClick',
+        'HapticFeedbackType.selectionClick',
+      ]);
+    });
   });
 
   group('CupertinoLiquidGlassBottomBar in RTL', () {
@@ -771,22 +989,31 @@ Widget _bottomBarHarness({
   List<String> labels = const ['Home', 'Search'],
   TextDirection textDirection = TextDirection.ltr,
   Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
+  bool enableHaptics = true,
+  bool disableAnimations = false,
+  Widget Function(BuildContext context, Color color, double size)? iconBuilder,
 }) {
   return CupertinoApp(
     localizationsDelegates: localizationsDelegates,
-    builder: (context, child) =>
-        Directionality(textDirection: textDirection, child: child!),
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(
+        context,
+      ).copyWith(disableAnimations: disableAnimations),
+      child: Directionality(textDirection: textDirection, child: child!),
+    ),
     home: CupertinoPageScaffold(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           CupertinoLiquidGlassBottomBar(
             itemInset: itemInset,
+            enableHaptics: enableHaptics,
             items: [
               for (final label in labels)
                 LiquidGlassBottomBarItem(
                   icon: CupertinoIcons.home,
                   label: label,
+                  iconBuilder: iconBuilder,
                 ),
             ],
             onTap: onTap ?? (_) {},
