@@ -6,7 +6,8 @@ Planned work, roughly by priority. Completed work is tracked in the
 ## High Priority
 
 - [ ] Golden tests for visual regression (`CupertinoLiquidGlass`, bars)
-- [ ] Widget tests for `CupertinoLiquidGlassBottomBar` drag gestures (fling, boundary haptics)
+- [x] Widget tests for `CupertinoLiquidGlassBottomBar` drag gestures (drag commit, boundary haptics, RTL)
+- [ ] Widget test for a bottom-bar fling carrying the selection past the finger
 - [ ] Align dimensions with the measured iOS 26 floating tab bar (bar 62 pt, 21 pt margins, capsule selection pill, constant-weight labels, no icon magnification — see the FabBar reference)
 - [ ] `CupertinoLiquidGlassAppBar` — SliverAppBar-style collapsible glass header
 - [ ] `CupertinoLiquidGlassSheet` — modal bottom sheet with glass surface
@@ -23,7 +24,8 @@ Planned work, roughly by priority. Completed work is tracked in the
 
 ## Low Priority
 
-- [ ] CI/CD pipeline (GitHub Actions: analyze, test, publish)
+- [x] CI pipeline (GitHub Actions: format, analyze, test, example test, publish dry-run, minimum-SDK job)
+- [ ] Automated pub.dev publishing from tags
 - [ ] Performance benchmarks and profiling documentation
 - [ ] Screenshot automation for pub.dev listing
 - [ ] Additional example scenes (settings page, chat UI, music player)
