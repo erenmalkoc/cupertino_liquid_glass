@@ -1,3 +1,26 @@
+## 0.7.2
+
+### Fixes
+* **Bottom-bar drags commit again**: the rubber-band `Transform` was only mounted while the bar was stretched, so the first stretch frame changed the tree depth, remounted the bar, disposed the drag recognizer and cancelled the drag. The `Transform` now stays mounted (an identity transform at rest) and a drag to another tab selects it.
+* **System dark mode**: with no explicit `CupertinoThemeData.brightness` (the plain `CupertinoApp` default), the glass, the solid fallback, the detached button and the bottom bar's inactive color stayed light on a dark-mode device. They now resolve brightness with `CupertinoTheme.maybeBrightnessOf`, like the Cupertino widgets; an explicit theme brightness still wins.
+* **RTL bottom bar**: under `TextDirection.rtl` tab 0 sits on the right, but taps, drags, flings and the selector pill still assumed left-to-right, so they selected the mirrored tab. All of them are now mirrored and `onTap` reports logical indices.
+* **Tab labels read once**: each tab's semantics node carried the label and the visible text added it again, so VoiceOver and TalkBack read it twice. The hint now comes from `CupertinoLocalizations.tabSemanticsLabel`, so it is localized like `CupertinoTabBar`'s.
+* **Any `Gradient` as `specularGradient`**: a `RadialGradient` or `SweepGradient` override was silently dropped, and a `LinearGradient` lost its `transform` and `tileMode`. The override is now painted as given.
+* **Detached button press**: every press and release remounted the glass and its backdrop layer. The press `Transform` now stays mounted.
+
+### Deprecations
+* `LiquidGlassBloom.radius` has had no effect since 0.7.0 (the bloom is a radial gradient sized by `spread`). It is deprecated and will be removed in 1.0.0.
+
+### Compatibility
+* The Dart SDK constraint is lowered from `^3.11.3` to `^3.8.0`, so the documented Flutter 3.32 minimum can actually be used. CI now also analyzes and tests the package on Flutter 3.32.8.
+
+### Example
+* Android build moved to the Flutter 3.47 template toolchain (Gradle 9.3.1, AGP 9.1.1, Kotlin 2.4.10), iOS deployment target raised to 15.0, `cupertino_icons` 2.0.0 and refreshed dependencies, and a real README.
+
+### Tests & CI
+* Regression tests for every fix above, plus coverage for haptics, Reduce Motion, `iconBuilder`, the solid fallback, the detached button and nav-bar header semantics.
+* CI runs the example's test, uses a read-only token and cancels superseded runs.
+
 ## 0.7.1
 
 * **Tab strip clears the rounded ends**: the bar's corner arc curves inwards exactly where the first and last tab's label sits, so a wide label (or a velocity-stretched selector pill) visibly crossed the border. The strip is now inset horizontally by a fraction of the corner radius — new `itemInset` parameter overrides it, and a square-cornered bar still uses the full width. Taps keep the full-width gesture box, so the inset margins belong to their neighbouring tabs.
