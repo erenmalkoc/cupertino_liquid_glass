@@ -18,7 +18,7 @@ funding:
   - https://github.com/sponsors/erenmalkoc
 
 environment:
-  sdk: ^3.11.3
+  sdk: ^3.8.0
   # BackdropFilter.grouped / BackdropGroup require Flutter 3.32+.
   flutter: ">=3.32.0"
 

@@ -4,7 +4,7 @@
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| **Dart** | >= 3.11.3 | Programming language |
+| **Dart** | >= 3.8.0 | Programming language |
 | **Flutter** | >= 3.32.0 | UI framework (`BackdropFilter.grouped` / `BackdropGroup`) |
 
 ## Dependencies

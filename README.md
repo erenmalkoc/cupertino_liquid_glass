@@ -51,7 +51,7 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 | Requirement | Minimum |
 |---|---|
 | Flutter | 3.32.0 |
-| Dart SDK | 3.11.3 |
+| Dart SDK | 3.8.0 |
 
 ### Installation
 
