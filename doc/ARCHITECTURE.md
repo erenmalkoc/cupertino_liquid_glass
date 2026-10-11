@@ -27,7 +27,7 @@ test/
 
 ### 1. CupertinoLiquidGlass (Core Widget)
 
-**File:** `lib/src/cupertino_liquid_glass_widget.dart` (~910 lines)
+**File:** `lib/src/cupertino_liquid_glass_widget.dart` (~925 lines)
 
 Wraps any child widget in an Apple-style liquid glass surface. Stateless; all rendering is handled by internal painters.
 
@@ -79,7 +79,7 @@ Immutable configuration object controlling every visual parameter of the glass e
 - `operator ==` / `hashCode` — Full value equality; painters compare themes by value in `shouldRepaint`
 
 **Theme Resolution Flow:**
-1. Read ambient brightness from `CupertinoTheme.brightnessOf(context)`
+1. Read ambient brightness from `CupertinoTheme.maybeBrightnessOf(context)`, which follows the platform brightness when the app's `CupertinoThemeData` leaves it null (falls back to light only without any ambient value)
 2. If explicit `theme` provided, use it; otherwise auto-select light/dark factory
 3. Merge any explicit parameter overrides on top
 4. Apply `effectIntensity` via `scaleEffects`
@@ -87,9 +87,9 @@ Immutable configuration object controlling every visual parameter of the glass e
 
 ### 3. CupertinoLiquidGlassNavBar
 
-**File:** `lib/src/liquid_glass_nav_bar.dart` (~145 lines)
+**File:** `lib/src/liquid_glass_nav_bar.dart` (~150 lines)
 
-Pre-built floating navigation bar. Stateless wrapper around `CupertinoLiquidGlass`. Content height is fixed at 44 pt to align with the default `LiquidGlassDetachedButton` baseline.
+Pre-built floating navigation bar. Stateless wrapper around `CupertinoLiquidGlass`. Content height is fixed at 44 pt, the iOS navigation bar content height. The default `LiquidGlassDetachedButton` is 52 pt (matching the bottom bar), so a button slotted into the nav bar should use `size: 44`. A title is wrapped in `Semantics(header: true)`.
 
 ```
 CupertinoLiquidGlassNavBar
@@ -104,7 +104,7 @@ CupertinoLiquidGlassNavBar
 
 ### 4. CupertinoLiquidGlassBottomBar
 
-**File:** `lib/src/liquid_glass_bottom_bar.dart` (~990 lines)
+**File:** `lib/src/liquid_glass_bottom_bar.dart` (~1150 lines)
 
 Pre-built floating tab bar with spring physics, velocity-based stretch, and drag interaction.
 
@@ -124,8 +124,9 @@ where mainBar = AnimatedBuilder (Transform.scale(_elasticController), snaps to i
                               └── GestureDetector (tap + horizontal drag)
                                   └── RepaintBoundary
                                       └── MediaQuery.withClampedTextScaling(max 1.0)
-                                          └── CustomPaint (_SelectorPainter, willChange: true)
-                                              └── Row: [Expanded Semantics(_TabItem)] x N
+                                          └── Padding (horizontal itemInset)
+                                              └── CustomPaint (_SelectorPainter, willChange: true)
+                                                  └── Row: [Expanded Semantics(ExcludeSemantics(_TabItem))] x N
 ```
 
 **State Management:**
@@ -141,6 +142,12 @@ where mainBar = AnimatedBuilder (Transform.scale(_elasticController), snaps to i
 - Drag: pill follows the finger; a selection haptic ticks once per crossed tab boundary
 - Fling: gesture momentum is handed to the spring as `initialVelocity`
 - Reduce Motion (`MediaQuery.disableAnimationsOf`): selector jumps, rubber banding skipped
+- RTL: tab 0 sits on the right; hit-testing, drag deltas, fling velocity and the selector pill are mirrored so indices stay logical
+- The rubber-band `Transform` (and the detached button's press `Transform`) stay mounted at rest, so the tree depth never changes mid-gesture and the glass is never remounted
+
+**Semantics:**
+- Each tab is one container node (button, selected state, label, tap action); the visible `_TabItem` is excluded so the label is read once
+- The hint comes from `CupertinoLocalizations.tabSemanticsLabel` ("Tab 1 of 3" in English)
 
 **Rubber Banding (Elasticity):**
 - On drag start: bar scales up to 108% via spring; on release springs back to 100%
@@ -161,7 +168,7 @@ where mainBar = AnimatedBuilder (Transform.scale(_elasticController), snaps to i
 - Label font: 10 pt (`_kLabelFontSize`)
 
 **Supporting Classes:**
-- `LiquidGlassBottomBarItem` — Data class holding `icon`, `activeIcon`, and `label`
+- `LiquidGlassBottomBarItem` — Data class holding `icon`, `activeIcon`, `label` and an optional `iconBuilder(context, color, size)` that replaces the glyph (e.g. an avatar) and receives the interpolated tab tint and the 25 pt icon size
 - `_TabItem` — Per-tab widget listening to its own proximity notifier
 - `_GlassIcon` — Widget rendering icon with glass refraction glow
 - `_GlassIconPainter` — CustomPainter for proximity-based glass halo
