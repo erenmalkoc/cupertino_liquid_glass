@@ -3,9 +3,10 @@ import 'package:flutter/cupertino.dart';
 import 'cupertino_liquid_glass_widget.dart';
 import 'liquid_glass_theme.dart';
 
-/// Standard height for the glass pill content area, matching
-/// the iOS navigation bar content height and [LiquidGlassDetachedButton]
-/// default size so both elements stay vertically aligned.
+/// Standard height for the glass pill content area, matching the iOS
+/// navigation bar content height. A [LiquidGlassDetachedButton] placed in
+/// the bar should use `size: 44` to line up (its default of 52 matches the
+/// bottom bar).
 const double _kNavBarContentHeight = 44.0;
 
 /// A pre-built navigation bar wrapped in a [CupertinoLiquidGlass] surface.
