@@ -46,3 +46,34 @@ jobs:
 
       - name: Publish dry-run
         run: dart pub publish --dry-run
+
+  min-sdk:
+    name: Analyze and test on the minimum Flutter (3.32.8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.32.8
+          channel: stable
+          cache: true
+
+      - run: flutter --version
+
+      # The example tracks the current stable SDK and cannot resolve on
+      # Dart 3.8, and pub on 3.32 has no --no-example flag.
+      - name: Drop the example
+        run: rm -rf example
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Formatting is skipped here: formatter output differs between SDKs.
+      - name: Analyze
+        run: flutter analyze lib test
+
+      - name: Test
+        run: flutter test
