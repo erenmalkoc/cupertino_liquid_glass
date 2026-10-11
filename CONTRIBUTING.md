@@ -22,8 +22,21 @@ First off, thank you for considering contributing! It's people like you that mak
 
 ## Style Guide
 * Follow the official [Dart Style Guide](https://dart.dev/guides/language/effective-dart/style).
-* Use `flutter format .` before committing.
-* Ensure `flutter analyze` passes without any errors or warnings.
+* Use `dart format .` before committing.
+* Ensure `flutter analyze --fatal-infos` passes without any errors, warnings or infos.
+
+### Local checks
+CI runs the same gate on every push and pull request, so run it before opening a PR:
+
+```sh
+dart format --output=none --set-exit-if-changed .
+flutter analyze --fatal-infos
+flutter test
+(cd example && flutter test)
+dart pub publish --dry-run
+```
+
+CI also analyzes and tests the package on the minimum supported Flutter (3.32.8), so avoid language features or APIs newer than Dart 3.8 / Flutter 3.32 in `lib/` and `test/`.
 
 ## Code of Conduct
 Please be respectful and professional in all interactions. 
