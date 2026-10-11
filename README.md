@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/mobile-gif.gif" width="320" alt="Liquid Glass Demo" />
+  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/demo.webp" width="320" alt="The example app: content scrolling under the glass bars, the spring tab selector and the switch to dark mode" />
 </p>
 
 <p align="center">
@@ -21,6 +21,17 @@ A Flutter package that approximates the visual appearance of Apple's iOS Liquid 
 The effect covers backdrop blur, specular highlights, directional edge lighting, inner shadows, vibrancy boost, and noise grain — all resolving automatically from `CupertinoTheme` brightness. The included tab bar uses `SpringSimulation` for elastic, physics-driven transitions.
 
 **This package replicates appearance, not native rendering.** If your project requires exact parity with iOS 26's native `glassEffect` modifier or `UIBlurEffect`, a native-bridge approach is necessary. For Flutter apps that want the Liquid Glass aesthetic through a straightforward Dart API, this package is production-ready.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/gallery-light.webp" width="24%" alt="Gallery tab in light mode" />
+  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/gallery-dark.webp" width="24%" alt="Gallery tab in dark mode" />
+  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/effects-light.webp" width="24%" alt="Effects tab with the effectIntensity and theme lerp sliders" />
+  <img src="https://raw.githubusercontent.com/erenmalkoc/cupertino_liquid_glass/main/doc/assets/theme-dark.webp" width="24%" alt="Theme tab with the light, dark and custom presets in dark mode" />
+</p>
+
+<p align="center">
+  <sub>The example app's Gallery, Effects and Theme tabs, in light and dark mode.</sub>
+</p>
 
 ## Features
 
