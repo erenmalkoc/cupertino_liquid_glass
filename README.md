@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://pub.dev/packages/cupertino_liquid_glass"><img src="https://img.shields.io/pub/v/cupertino_liquid_glass.svg" alt="pub package"></a>
   <a href="https://pub.dev/packages/cupertino_liquid_glass/score"><img src="https://img.shields.io/pub/points/cupertino_liquid_glass" alt="pub points"></a>
-  <a href="https://pub.dev/packages/cupertino_liquid_glass/score"><img src="https://img.shields.io/pub/popularity/cupertino_liquid_glass" alt="popularity"></a>
+  <a href="https://pub.dev/packages/cupertino_liquid_glass"><img src="https://img.shields.io/pub/dm/cupertino_liquid_glass" alt="monthly downloads"></a>
   <a href="https://pub.dev/packages/cupertino_liquid_glass/score"><img src="https://img.shields.io/pub/likes/cupertino_liquid_glass" alt="likes"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="license: MIT"></a>
 </p>
@@ -162,7 +162,7 @@ CupertinoLiquidGlassBottomBar(
 )
 ```
 
-Or stand-alone:
+Inside `CupertinoLiquidGlassNavBar`, pass `size: 44` so the button matches the nav bar's 44 pt height (the default 52 matches the bottom bar). Or stand-alone:
 
 ```dart
 LiquidGlassDetachedButton(
@@ -252,7 +252,7 @@ A floating glass tab bar with safe-area handling.
 | `currentIndex` | `int` | 0 | Selected tab index |
 | `onTap` | `ValueChanged<int>?` | null | Tab tap callback |
 | `activeColor` | `Color?` | primaryColor | Selected tab color |
-| `inactiveColor` | `Color?` | systemGrey | Unselected tab color |
+| `inactiveColor` | `Color?` | systemGrey2 (light) / systemGrey (dark) | Unselected tab color |
 | `theme` | `LiquidGlassThemeData?` | auto | Glass theme override |
 | `borderRadius` | `BorderRadius?` | 26 px | Corner radius |
 | `horizontalMargin` | `double` | 8.0 | Horizontal margin from screen edges |
@@ -264,6 +264,15 @@ A floating glass tab bar with safe-area handling.
 | `enableHaptics` | `bool` | true | Selection haptic on tab change + a tick per crossed boundary while dragging |
 | `effectIntensity` | `double` | 1.0 | Scales all decorative glass layers (0.0 = blur + tint only) |
 | `detachedButton` | `Widget?` | null | Optional detached circular button rendered to the right of the bar (rubber banding does not apply to it) |
+
+### `LiquidGlassBottomBarItem`
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `icon` | `IconData` | **required** | Icon shown when the tab is not selected |
+| `activeIcon` | `IconData?` | `icon` | Icon shown when the tab is selected |
+| `label` | `String` | **required** | Label below the icon, also announced by screen readers |
+| `iconBuilder` | `Widget Function(BuildContext context, Color color, double size)?` | null | Replaces the icon glyph (e.g. a user avatar). Receives the tab's current tint, interpolated between inactive and active, and the 25 pt icon size |
 
 The bar reacts on touch **down** (the selector starts moving immediately, like `UITabBar`); the selection is committed via `onTap` on release. When the system Reduce Motion setting is on, springs and rubber banding are skipped.
 
@@ -283,6 +292,18 @@ A circular floating glass button matching the iOS 26 detached-action pattern (Ap
 | `effectIntensity` | `double` | 1.0 | Scales the decorative layers and the iridescent sweep (0.0 = blur + tint only) |
 
 The button has a built-in press animation: it scales down to 88% with a subtle darkening scrim on tap-down, then springs back with a single overshoot (~260 ms) on release. With Reduce Motion enabled the release is a short plain ease-out.
+
+### `LiquidGlassBloom`
+
+Paints a soft colored radial glow behind its child.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `child` | `Widget` | **required** | Content the glow sits behind |
+| `color` | `Color` | **required** | Glow color |
+| `spread` | `double` | 8.0 | How far the glow extends beyond the child bounds |
+| `intensity` | `double` | 0.5 | Glow opacity (0.0–1.0) |
+| `radius` | `double` | 20.0 | **Deprecated**, has no effect since 0.7.0 (the glow is sized by `spread`); will be removed in 1.0.0 |
 
 ## Performance tips
 
