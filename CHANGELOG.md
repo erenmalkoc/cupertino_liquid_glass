@@ -14,6 +14,9 @@
 ### Compatibility
 * The Dart SDK constraint is lowered from `^3.11.3` to `^3.8.0`, so the documented Flutter 3.32 minimum can actually be used. CI now also analyzes and tests the package on Flutter 3.32.8.
 
+### Documentation
+* The README shows the current example app: a new demo animation and four screenshots replace the GIF of the pre-0.7 demo.
+
 ### Example
 * Android build moved to the Flutter 3.47 template toolchain (Gradle 9.3.1, AGP 9.1.1, Kotlin 2.4.10), iOS deployment target raised to 15.0, `cupertino_icons` 2.0.0 and refreshed dependencies, and a real README.
 
