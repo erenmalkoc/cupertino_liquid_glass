@@ -697,6 +697,24 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('height makes the bar and its tab nodes taller', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(_bottomBarHarness(height: 60));
+      expect(tester.getSize(find.byType(CupertinoLiquidGlass)).height, 60.0);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Home')).rect.height,
+        60.0,
+      );
+      // Tab content stays centered in the taller bar.
+      final bar = tester.getRect(find.byType(CupertinoLiquidGlass));
+      final label = tester.getRect(find.text('Home'));
+      expect(label.bottom, lessThan(bar.bottom - 4));
+      expect(tester.takeException(), isNull);
+      semantics.dispose();
+    });
+
     testWidgets('effectIntensity 0 drops the selector bloom glow', (
       tester,
     ) async {
@@ -1075,6 +1093,7 @@ Widget _bottomBarHarness({
   Widget Function(BuildContext context, Color color, double size)? iconBuilder,
   String? Function(String label)? semanticsIdentifier,
   double effectIntensity = 1.0,
+  double? height,
 }) {
   return CupertinoApp(
     localizationsDelegates: localizationsDelegates,
@@ -1091,6 +1110,7 @@ Widget _bottomBarHarness({
           CupertinoLiquidGlassBottomBar(
             itemInset: itemInset,
             enableHaptics: enableHaptics,
+            height: height ?? 52.0,
             effectIntensity: effectIntensity,
             items: [
               for (final label in labels)

@@ -48,7 +48,7 @@ class LiquidGlassBottomBarItem {
   });
 }
 
-/// Tab bar height (excluding safe area).
+/// Default tab bar height (excluding safe area).
 const double _kTabBarHeight = 52.0;
 
 /// Minimum touch target size (Apple HIG minimum).
@@ -159,6 +159,12 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
   /// Whether to include the bottom safe-area padding (home indicator inset).
   final bool useSafeArea;
 
+  /// Height of the glass bar, excluding the safe area. Defaults to 52 pt
+  /// (Apple HIG). A taller bar gives the tabs more vertical breathing room;
+  /// the icon and label stay centered and the selector pill grows with it.
+  /// Must not be smaller than the 44 pt touch target.
+  final double height;
+
   /// When false, the bar falls back to a solid Cupertino system-grey surface
   /// instead of the live backdrop-blur glass effect. Useful as a low-power
   /// fallback or design opt-out. Defaults to true.
@@ -215,6 +221,7 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.horizontalMargin = 8.0,
     this.itemInset,
     this.useSafeArea = true,
+    this.height = _kTabBarHeight,
     this.enableGlass = true,
     this.bottomSpacing,
     this.activeColor,
@@ -223,7 +230,10 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
     this.enableHaptics = true,
     this.effectIntensity = 1.0,
     this.detachedButton,
-  });
+  }) : assert(
+         height >= _kMinHitTarget,
+         'height must leave room for the 44 pt touch target',
+       );
 
   @override
   State<CupertinoLiquidGlassBottomBar> createState() =>
@@ -722,7 +732,7 @@ class _CupertinoLiquidGlassBottomBarState
       borderRadius: borderRadius,
       padding: EdgeInsets.zero,
       child: SizedBox(
-        height: _kTabBarHeight,
+        height: widget.height,
         child: LayoutBuilder(
           builder: (context, constraints) {
             // Gestures stay on the full-width box (no dead strip at the ends),
