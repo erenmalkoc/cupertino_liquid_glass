@@ -31,12 +31,20 @@ class LiquidGlassBottomBarItem {
   final Widget Function(BuildContext context, Color color, double size)?
   iconBuilder;
 
+  /// Optional [SemanticsProperties.identifier] for this tab's semantics node.
+  ///
+  /// Not announced by screen readers. UI automation (Maestro, Appium, Flutter
+  /// integration tests through `find.bySemanticsIdentifier`) uses it to find a
+  /// tab regardless of its localized [label].
+  final String? semanticsIdentifier;
+
   /// Creates a [LiquidGlassBottomBarItem].
   const LiquidGlassBottomBarItem({
     required this.icon,
     this.activeIcon,
     required this.label,
     this.iconBuilder,
+    this.semanticsIdentifier,
   });
 }
 
@@ -767,6 +775,7 @@ class _CupertinoLiquidGlassBottomBarState
                             return Expanded(
                               child: Semantics(
                                 container: true,
+                                identifier: widget.items[i].semanticsIdentifier,
                                 button: true,
                                 selected: i == widget.currentIndex,
                                 label: widget.items[i].label,

@@ -648,6 +648,51 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('semanticsIdentifier reaches the tab semantics node', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      var tapped = -1;
+      await tester.pumpWidget(
+        _bottomBarHarness(
+          semanticsIdentifier: (label) => 'tab-${label.toLowerCase()}',
+          onTap: (i) => tapped = i,
+        ),
+      );
+
+      final search = find.bySemanticsIdentifier('tab-search');
+      expect(search, findsOneWidget);
+      expect(find.bySemanticsIdentifier('tab-home'), findsOneWidget);
+      // The identifier sits on the same node as the label and tap action.
+      expect(
+        tester.getSemantics(search),
+        matchesSemantics(
+          label: 'Search',
+          hint: 'Tab 2 of 2',
+          identifier: 'tab-search',
+          isButton: true,
+          hasSelectedState: true,
+          hasTapAction: true,
+        ),
+      );
+      await tester.tap(search);
+      await tester.pumpAndSettle();
+      expect(tapped, 1);
+      semantics.dispose();
+    });
+
+    testWidgets('tabs without semanticsIdentifier keep an empty identifier', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(_bottomBarHarness());
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Home')).identifier,
+        isEmpty,
+      );
+      semantics.dispose();
+    });
+
     testWidgets('iconBuilder replaces the glyph with the tab tint and size', (
       tester,
     ) async {
@@ -992,6 +1037,7 @@ Widget _bottomBarHarness({
   bool enableHaptics = true,
   bool disableAnimations = false,
   Widget Function(BuildContext context, Color color, double size)? iconBuilder,
+  String? Function(String label)? semanticsIdentifier,
 }) {
   return CupertinoApp(
     localizationsDelegates: localizationsDelegates,
@@ -1014,6 +1060,7 @@ Widget _bottomBarHarness({
                   icon: CupertinoIcons.home,
                   label: label,
                   iconBuilder: iconBuilder,
+                  semanticsIdentifier: semanticsIdentifier?.call(label),
                 ),
             ],
             onTap: onTap ?? (_) {},
