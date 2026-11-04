@@ -1,3 +1,8 @@
+## 0.8.1
+
+### Fixes
+* **Tab tap targets meet Android's 48 dp guideline**: each bottom-bar tab's semantics node was 44 pt tall while the bar takes taps across its full 52 pt height, so `androidTapTargetGuideline` (and accessibility scanners) flagged every tab. The node now spans the full bar height. Tab content stays centered, nothing moves visually.
+
 ## 0.8.0
 
 ### Features

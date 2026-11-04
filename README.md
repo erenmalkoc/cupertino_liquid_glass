@@ -68,7 +68,7 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 
 ```yaml
 dependencies:
-  cupertino_liquid_glass: ^0.8.0
+  cupertino_liquid_glass: ^0.8.1
 ```
 
 ```bash
