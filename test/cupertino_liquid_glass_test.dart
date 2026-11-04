@@ -688,6 +688,8 @@ void main() {
       await tester.pumpWidget(_bottomBarHarness());
       await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+      // No unlabeled bar-wide node with drag/scroll actions.
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
       expect(
         tester.getSemantics(find.bySemanticsLabel('Home')).rect.height,
         52.0,

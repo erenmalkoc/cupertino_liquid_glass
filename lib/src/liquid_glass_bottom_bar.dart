@@ -742,6 +742,11 @@ class _CupertinoLiquidGlassBottomBarState
               onPointerUp: _onPointerRelease,
               onPointerCancel: _onPointerRelease,
               child: GestureDetector(
+                // Each tab's own semantics node carries its tap action. The
+                // bar-wide recognizers would otherwise add an unlabeled node
+                // with tap and scroll actions that screen readers announce
+                // as an unnamed control.
+                excludeFromSemantics: true,
                 onTapUp: (d) => _onTapUp(d, contentWidth, inset),
                 onHorizontalDragStart: _onDragStart,
                 onHorizontalDragUpdate: (d) => _onDragUpdate(d, contentWidth),
