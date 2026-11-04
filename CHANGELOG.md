@@ -3,6 +3,7 @@
 ### Fixes
 * **Tab tap targets meet Android's 48 dp guideline**: each bottom-bar tab's semantics node was 44 pt tall while the bar takes taps across its full 52 pt height, so `androidTapTargetGuideline` (and accessibility scanners) flagged every tab. The node now spans the full bar height. Tab content stays centered, nothing moves visually.
 * **No unnamed control on the bar**: the bar-wide tap and drag recognizers exposed their own semantics node with tap and scroll actions but no label, which TalkBack announced as an unnamed control and `labeledTapTargetGuideline` flagged. They are now excluded from semantics. Each tab's node still carries its tap action.
+* **`effectIntensity` also covers the selector bloom**: the bottom bar's colored glow around the selector pill stayed at full strength while every other decorative layer followed `effectIntensity`. It now scales with it too, so `effectIntensity: 0.0` gives a plain pill on a clean surface.
 
 ## 0.8.0
 

@@ -697,6 +697,26 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('effectIntensity 0 drops the selector bloom glow', (
+      tester,
+    ) async {
+      RenderObject secici() => tester.renderObject(
+        find.byWidgetPredicate(
+          (w) =>
+              w is CustomPaint &&
+              w.painter.runtimeType.toString() == '_SelectorPainter',
+        ),
+      );
+
+      await tester.pumpWidget(_bottomBarHarness());
+      // Three bloom rings, the fill pill and the highlight stroke.
+      expect(secici(), paintsExactlyCountTimes(#drawRRect, 5));
+
+      await tester.pumpWidget(_bottomBarHarness(effectIntensity: 0.0));
+      // Fill pill and highlight stroke only.
+      expect(secici(), paintsExactlyCountTimes(#drawRRect, 2));
+    });
+
     testWidgets('tabs without semanticsIdentifier keep an empty identifier', (
       tester,
     ) async {
@@ -1054,6 +1074,7 @@ Widget _bottomBarHarness({
   bool disableAnimations = false,
   Widget Function(BuildContext context, Color color, double size)? iconBuilder,
   String? Function(String label)? semanticsIdentifier,
+  double effectIntensity = 1.0,
 }) {
   return CupertinoApp(
     localizationsDelegates: localizationsDelegates,
@@ -1070,6 +1091,7 @@ Widget _bottomBarHarness({
           CupertinoLiquidGlassBottomBar(
             itemInset: itemInset,
             enableHaptics: enableHaptics,
+            effectIntensity: effectIntensity,
             items: [
               for (final label in labels)
                 LiquidGlassBottomBarItem(

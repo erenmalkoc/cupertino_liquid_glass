@@ -190,8 +190,9 @@ class CupertinoLiquidGlassBottomBar extends StatefulWidget {
   final bool enableHaptics;
 
   /// How strongly the decorative glass layers are rendered (0.0–1.0).
-  /// `0.0` gives a clean frosted surface (blur + tint only), `1.0` the full
-  /// liquid-glass treatment. Forwarded to [CupertinoLiquidGlass.effectIntensity].
+  /// `0.0` gives a clean frosted surface (blur + tint only) and a selector
+  /// pill without its colored bloom glow, `1.0` the full liquid-glass
+  /// treatment. Forwarded to [CupertinoLiquidGlass.effectIntensity].
   final double effectIntensity;
 
   /// An optional floating circular glass button rendered to the right of the
@@ -773,6 +774,7 @@ class _CupertinoLiquidGlassBottomBarState
                           selectorRadius: 16.0,
                           isDark: isDark,
                           isRtl: _isRtl,
+                          effectIntensity: widget.effectIntensity,
                         ),
                         willChange: true,
                         child: Row(
@@ -1072,6 +1074,10 @@ class _SelectorPainter extends CustomPainter {
   /// rightmost slot.
   final bool isRtl;
 
+  /// Scales the decorative bloom glow (0.0 removes it), following the bar's
+  /// [CupertinoLiquidGlassBottomBar.effectIntensity].
+  final double effectIntensity;
+
   _SelectorPainter({
     required this.position,
     required this.velocity,
@@ -1080,6 +1086,7 @@ class _SelectorPainter extends CustomPainter {
     required this.selectorRadius,
     required this.isDark,
     required this.isRtl,
+    required this.effectIntensity,
   }) : super(repaint: Listenable.merge([position, velocity]));
 
   /// Cached fill paint (constant per painter instance).
@@ -1126,18 +1133,22 @@ class _SelectorPainter extends CustomPainter {
     // 1. Bloom glow — soft colored halo behind the selector, painted as
     //    concentric translucent fills. A MaskFilter Gaussian here would be
     //    an offscreen blur pass on every animation frame.
-    canvas.drawRRect(
-      rrect.inflate(7.0),
-      Paint()..color = activeColor.withValues(alpha: 0.025),
-    );
-    canvas.drawRRect(
-      rrect.inflate(4.5),
-      Paint()..color = activeColor.withValues(alpha: 0.045),
-    );
-    canvas.drawRRect(
-      rrect.inflate(2.0),
-      Paint()..color = activeColor.withValues(alpha: 0.06),
-    );
+    //    Decorative, so it follows effectIntensity like the glass layers.
+    final glow = effectIntensity.clamp(0.0, 1.0);
+    if (glow > 0.0) {
+      canvas.drawRRect(
+        rrect.inflate(7.0),
+        Paint()..color = activeColor.withValues(alpha: 0.025 * glow),
+      );
+      canvas.drawRRect(
+        rrect.inflate(4.5),
+        Paint()..color = activeColor.withValues(alpha: 0.045 * glow),
+      );
+      canvas.drawRRect(
+        rrect.inflate(2.0),
+        Paint()..color = activeColor.withValues(alpha: 0.06 * glow),
+      );
+    }
 
     // 2. Fill — subtle translucent pill.
     canvas.drawRRect(rrect, _fillPaint);
@@ -1168,5 +1179,6 @@ class _SelectorPainter extends CustomPainter {
       tabCount != old.tabCount ||
       activeColor != old.activeColor ||
       isDark != old.isDark ||
-      isRtl != old.isRtl;
+      isRtl != old.isRtl ||
+      effectIntensity != old.effectIntensity;
 }
