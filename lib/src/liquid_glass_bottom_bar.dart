@@ -771,6 +771,11 @@ class _CupertinoLiquidGlassBottomBarState
                         ),
                         willChange: true,
                         child: Row(
+                          // Each tab's semantics node spans the full bar
+                          // height: the bar takes taps across all of it, and
+                          // a 44 pt node failed Android's 48 dp tap-target
+                          // guideline. The item content stays centered.
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: List.generate(widget.items.length, (i) {
                             return Expanded(
                               child: Semantics(

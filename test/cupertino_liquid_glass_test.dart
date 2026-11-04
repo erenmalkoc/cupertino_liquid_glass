@@ -681,6 +681,20 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('tab semantics nodes meet the Android tap-target guideline', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(_bottomBarHarness());
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Home')).rect.height,
+        52.0,
+      );
+      semantics.dispose();
+    });
+
     testWidgets('tabs without semanticsIdentifier keep an empty identifier', (
       tester,
     ) async {
