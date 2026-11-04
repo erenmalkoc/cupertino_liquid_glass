@@ -1,3 +1,8 @@
+## 0.8.0
+
+### Features
+* **`LiquidGlassBottomBarItem.semanticsIdentifier`**: an optional `SemanticsProperties.identifier` for each tab's semantics node. Screen readers do not announce it. UI automation (Maestro, Appium, `find.bySemanticsIdentifier` in Flutter tests) can now find a tab by a stable id instead of its localized label. Tabs without it behave exactly as before.
+
 ## 0.7.2
 
 ### Fixes

@@ -68,7 +68,7 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 
 ```yaml
 dependencies:
-  cupertino_liquid_glass: ^0.7.2
+  cupertino_liquid_glass: ^0.8.0
 ```
 
 ```bash
@@ -284,6 +284,7 @@ A floating glass tab bar with safe-area handling.
 | `activeIcon` | `IconData?` | `icon` | Icon shown when the tab is selected |
 | `label` | `String` | **required** | Label below the icon, also announced by screen readers |
 | `iconBuilder` | `Widget Function(BuildContext context, Color color, double size)?` | null | Replaces the icon glyph (e.g. a user avatar). Receives the tab's current tint, interpolated between inactive and active, and the 25 pt icon size |
+| `semanticsIdentifier` | `String?` | null | `SemanticsProperties.identifier` of the tab's semantics node. Not announced, used by UI automation (Maestro, Appium, `find.bySemanticsIdentifier`) to find a tab regardless of its localized label |
 
 The bar reacts on touch **down** (the selector starts moving immediately, like `UITabBar`); the selection is committed via `onTap` on release. When the system Reduce Motion setting is on, springs and rubber banding are skipped.
 
