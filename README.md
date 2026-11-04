@@ -68,7 +68,7 @@ The effect covers backdrop blur, specular highlights, directional edge lighting,
 
 ```yaml
 dependencies:
-  cupertino_liquid_glass: ^0.8.1
+  cupertino_liquid_glass: ^0.9.0
 ```
 
 ```bash
@@ -249,6 +249,7 @@ A floating glass navigation bar with safe-area handling.
 | `borderRadius` | `BorderRadius?` | 22 px | Corner radius |
 | `horizontalMargin` | `double` | 8.0 | Horizontal margin from screen edges |
 | `useSafeArea` | `bool` | true | Include status bar padding |
+| `height` | `double` | 52.0 | Height of the glass bar, excluding the safe area. Tab content stays centered and the selector pill grows with it. Must be at least 44 |
 | `enableGlass` | `bool` | true | When false, the bar falls back to a solid Cupertino surface |
 | `effectIntensity` | `double` | 1.0 | Scales all decorative glass layers (0.0 = blur + tint only) |
 | `detachedButton` | `Widget?` | null | Optional detached circular button rendered to the right of the bar |

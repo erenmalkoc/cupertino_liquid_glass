@@ -1,3 +1,8 @@
+## 0.9.0
+
+### Features
+* **`CupertinoLiquidGlassBottomBar.height`**: the bar was fixed at 52 pt. Apps with larger icons or a raised center button can now make it taller. Tab content stays centered, the selector pill and each tab's semantics node grow with the bar. Must be at least the 44 pt touch target. Defaults to 52 pt, so existing bars do not change.
+
 ## 0.8.1
 
 ### Fixes
