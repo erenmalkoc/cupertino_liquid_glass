@@ -38,6 +38,12 @@ class LiquidGlassBottomBarItem {
   /// tab regardless of its localized [label].
   final String? semanticsIdentifier;
 
+  /// When true, the selector pill fades out as it reaches this tab. For a tab
+  /// that shows its selected state itself, e.g. a raised center button drawn
+  /// over the bar: the pill would sit half-hidden behind it. The label still
+  /// takes the active color.
+  final bool hideSelector;
+
   /// Creates a [LiquidGlassBottomBarItem].
   const LiquidGlassBottomBarItem({
     required this.icon,
@@ -45,6 +51,7 @@ class LiquidGlassBottomBarItem {
     required this.label,
     this.iconBuilder,
     this.semanticsIdentifier,
+    this.hideSelector = false,
   });
 }
 
@@ -785,6 +792,10 @@ class _CupertinoLiquidGlassBottomBarState
                           isDark: isDark,
                           isRtl: _isRtl,
                           effectIntensity: widget.effectIntensity,
+                          hiddenTabs: [
+                            for (var i = 0; i < widget.items.length; i++)
+                              if (widget.items[i].hideSelector) i,
+                          ],
                         ),
                         willChange: true,
                         child: Row(
@@ -1088,6 +1099,10 @@ class _SelectorPainter extends CustomPainter {
   /// [CupertinoLiquidGlassBottomBar.effectIntensity].
   final double effectIntensity;
 
+  /// Logical indices of tabs that hide the selector
+  /// ([LiquidGlassBottomBarItem.hideSelector]).
+  final List<int> hiddenTabs;
+
   _SelectorPainter({
     required this.position,
     required this.velocity,
@@ -1097,6 +1112,7 @@ class _SelectorPainter extends CustomPainter {
     required this.isDark,
     required this.isRtl,
     required this.effectIntensity,
+    this.hiddenTabs = const [],
   }) : super(repaint: Listenable.merge([position, velocity]));
 
   /// Cached fill paint (constant per painter instance).
@@ -1117,6 +1133,24 @@ class _SelectorPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (tabCount == 0) return;
 
+    // Fade the pill out as it nears a tab that hides it.
+    var visibility = 1.0;
+    for (final hidden in hiddenTabs) {
+      final near = (1.0 - (position.value - hidden).abs()).clamp(0.0, 1.0);
+      visibility = math.min(visibility, 1.0 - near);
+    }
+    if (visibility <= 0.0) return;
+    if (visibility < 1.0) {
+      canvas.saveLayer(
+        Offset.zero & size,
+        Paint()..color = Color.fromRGBO(0, 0, 0, visibility),
+      );
+    }
+    _paintSelector(canvas, size);
+    if (visibility < 1.0) canvas.restore();
+  }
+
+  void _paintSelector(Canvas canvas, Size size) {
     // Visual slot of the logical position (mirrored in RTL).
     final pos = isRtl ? (tabCount - 1) - position.value : position.value;
     final vel = velocity.value;
@@ -1190,5 +1224,6 @@ class _SelectorPainter extends CustomPainter {
       activeColor != old.activeColor ||
       isDark != old.isDark ||
       isRtl != old.isRtl ||
-      effectIntensity != old.effectIntensity;
+      effectIntensity != old.effectIntensity ||
+      !listEquals(hiddenTabs, old.hiddenTabs);
 }

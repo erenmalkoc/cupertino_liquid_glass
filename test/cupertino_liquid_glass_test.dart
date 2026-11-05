@@ -715,6 +715,29 @@ void main() {
       semantics.dispose();
     });
 
+    testWidgets('hideSelector removes the pill on that tab', (tester) async {
+      RenderObject secici() => tester.renderObject(
+        find.byWidgetPredicate(
+          (w) =>
+              w is CustomPaint &&
+              w.painter.runtimeType.toString() == '_SelectorPainter',
+        ),
+      );
+
+      await tester.pumpWidget(
+        _bottomBarHarness(currentIndex: 1, hideSelectorFor: {'Search'}),
+      );
+      await tester.pumpAndSettle();
+      // Neither the bloom rings, the fill nor the highlight.
+      expect(secici(), paintsExactlyCountTimes(#drawRRect, 0));
+
+      await tester.pumpWidget(
+        _bottomBarHarness(currentIndex: 0, hideSelectorFor: {'Search'}),
+      );
+      await tester.pumpAndSettle();
+      expect(secici(), paintsExactlyCountTimes(#drawRRect, 5));
+    });
+
     testWidgets('effectIntensity 0 drops the selector bloom glow', (
       tester,
     ) async {
@@ -1094,6 +1117,8 @@ Widget _bottomBarHarness({
   String? Function(String label)? semanticsIdentifier,
   double effectIntensity = 1.0,
   double? height,
+  int currentIndex = 0,
+  Set<String> hideSelectorFor = const {},
 }) {
   return CupertinoApp(
     localizationsDelegates: localizationsDelegates,
@@ -1112,6 +1137,7 @@ Widget _bottomBarHarness({
             enableHaptics: enableHaptics,
             height: height ?? 52.0,
             effectIntensity: effectIntensity,
+            currentIndex: currentIndex,
             items: [
               for (final label in labels)
                 LiquidGlassBottomBarItem(
@@ -1119,6 +1145,7 @@ Widget _bottomBarHarness({
                   label: label,
                   iconBuilder: iconBuilder,
                   semanticsIdentifier: semanticsIdentifier?.call(label),
+                  hideSelector: hideSelectorFor.contains(label),
                 ),
             ],
             onTap: onTap ?? (_) {},

@@ -2,6 +2,7 @@
 
 ### Features
 * **`CupertinoLiquidGlassBottomBar.height`**: the bar was fixed at 52 pt. Apps with larger icons or a raised center button can now make it taller. Tab content stays centered, the selector pill and each tab's semantics node grow with the bar. Must be at least the 44 pt touch target. Defaults to 52 pt, so existing bars do not change.
+* **`LiquidGlassBottomBarItem.hideSelector`**: the selector pill fades out as it reaches that tab. For a tab that shows its own selected state, such as a raised center button drawn over the bar, where the pill would sit half-hidden behind it. The label still takes the active color.
 
 ## 0.8.1
 
